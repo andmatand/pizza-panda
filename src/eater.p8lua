@@ -1,0 +1,102 @@
+function add_eater(x, y, s)
+	local a = add_head(x, y, s)
+	join_table(a, eaters)
+end
+
+function update_eater(a)
+	if a.state == 1 then
+		for f in all(foods) do
+			if overlap(f, a) and not f.wasjustbarfed then
+				local barf = not a.photo
+
+				if f.israt then
+					if a.iscat then
+						ungrab(f)
+						respawn_rat(f)
+						join_table(f, bodies)
+						leave_tables(f, grabbables)
+					end
+				elseif not a.barfed or not barf then
+					local func = barf and eat_and_barf or eat
+
+					sfx(barf and 54 or 60)
+
+					if f.owner == player then
+						freezeframes = 15
+						add(freezeactors, a)
+					end
+					ungrab(f)
+
+					a.state, a.animkey, a.food = (barf and 2 or 3), "flash", f
+					face(a, player)
+					leave_tables(a, facers)
+
+					a.cr = cocreate(function()
+						wait_for_anim(a)
+						func(a)
+					end)
+
+					f.oldtables, f.anim, f.vx, f.vy =
+						merge_shallow(f.tables), f.anims.default, 0, 0
+					del_actor(f)
+					local eaterbox = get_box(a, a.eaterbox)
+					register_easer(f, xyt(center_x_in_box(f, eaterbox), eaterbox.y))
+
+					if not barf then
+						donepies += 1
+						hide_photo(a.photo)
+						add_explosion(get_center(a))
+					end
+				end
+
+				break
+			end
+		end
+	end
+end
+
+function eat(a)
+	a.animkey = "eat"
+	wait_for_anim(a)
+
+	a.animkey, a.food = "hide"
+	wait_for_anim(a)
+
+	del_actor(a)
+end
+
+function eat_and_barf(a)
+	local f = a.food
+
+	a.animkey = "eat_and_barf"
+	wait_for_anim(a)
+	a.animkey = "default"
+
+	for t in all(f.oldtables) do
+		join_table(f, t)
+	end
+	join_table(f, bodies)
+	f.wasjustbarfed, a.barfed, a.food = true, true
+	level_cr(function()
+		wait(14)
+		f.wasjustbarfed = false
+	end)
+
+	wait(15)
+	a.state = 1
+	join_table(a, facers)
+end
+
+function draw_eater(a)
+	local f = a.food
+	if f then
+		local frameprops = a.anim:get_frame_props()
+		local eatv = frameprops.eatv or 0
+
+		clip(f.dx - 5 - camx, f.dy - camy, f.w + 10, f.h)
+		camera(camx, camy + (eatv * f.h))
+		draw_skin(f)
+		clip()
+		camera(camx, camy)
+	end
+end

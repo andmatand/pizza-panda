@@ -1,0 +1,61 @@
+anim = {}
+anim.__index = anim
+
+function new_anim(w, h, indexes, delay, loop, frameprops, altdelay)
+	return setmetatable({
+		w = w,
+		h = h,
+    indexes = indexes,
+    i = 1,
+    timer = new_timer(delay or 0),
+		alttimer = new_timer(altdelay),
+    loop = loop,
+		frameprops = frameprops or {},
+  }, anim)
+end
+
+function anim:get_timer()
+	return self:get_frame_props().altdelay and self.alttimer or self.timer
+end
+
+function anim:update()
+	local timer = self:get_timer()
+
+  if timer.len > 0 and timer:update() then
+    timer:reset()
+
+		if self.i < #self.indexes then
+      self.i += 1
+			return true
+    elseif self.loop then
+      self:reset()
+			return true
+    end
+  end
+end
+
+function anim:get_index()
+  return self.indexes[self.i]
+end
+
+function anim:get_frame_props()
+	return self.frameprops[self.i] or {}
+end
+
+function anim:reset()
+  self.i = 1
+  self.timer:reset()
+end
+
+function anim:sync_with(other)
+	self.i = other.i
+	self.timer.v = other.timer.v
+end
+
+function anim:is_at_end()
+  return self.i == #self.indexes and self:get_timer():is_done()
+end
+
+function anim:is_done()
+  return not self.loop and self:is_at_end()
+end

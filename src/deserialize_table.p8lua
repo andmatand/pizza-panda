@@ -1,0 +1,56 @@
+-- 170 tokens
+-- limitations:
+-- * max 255 properties in a table
+-- * max 255 characters in a string
+-- * no "function" type support
+
+function deserialize_value(addr)
+	local vtype, v = @addr
+	addr += 1
+
+	if vtype == 0 then     -- 8-bit integer
+		return @addr, addr + 1
+	elseif vtype == 1 then -- 16-bit integer
+		return %addr, addr + 2
+	elseif vtype == 2 then -- number
+		return $addr, addr + 4
+	elseif vtype == 3 then -- boolean true
+		return true, addr
+	elseif vtype == 4 then -- boolean false
+		return false, addr
+	elseif vtype == 5 then -- string
+		local len = @addr
+		addr += 1
+
+		v = ""
+		for i = 1, len do
+			v ..= chr(@addr)
+			addr += 1
+		end
+
+		return v, addr
+	elseif vtype == 6 then -- empty table
+		return {}, addr
+	elseif vtype == 7 then -- table
+		return deserialize_table(addr, true)
+	elseif vtype == 8 then -- table
+		return deserialize_table(addr)
+	end
+end
+
+function deserialize_table(addr, isarray)
+	local t, propcount, k, v = {}, @addr
+	addr += 1
+
+	for i = 1, propcount do
+		if isarray then
+			k = i
+		else
+			k, addr = deserialize_value(addr)
+		end
+		v, addr = deserialize_value(addr)
+		t[k] = v
+	end
+
+	return t, addr
+end

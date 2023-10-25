@@ -1,0 +1,151 @@
+-- states:
+-- * 1 default (can wear hat, can eat if eater)
+-- * 2 eating and barfing (can wear hat)
+-- * 3 eating for real
+
+function add_head(x, y, s)
+	local a = add_actor(data_table_24, x, y)
+
+	overlay(a, data_table_32[s])
+	a.target, a.s, a.clips[1] = player, s, get_box(a, data_table_29)
+
+	if a.iscat then
+		level_cr(function()
+			repeat
+				a.target = rats[1] or player
+				yield()
+			until sempre
+		end)
+	end
+
+	for _, anim in pairs(a.anims) do
+		for k, v in pairs(anim.indexes) do
+			anim.indexes[k] = v == 2 and s + 16 or s
+		end
+	end
+
+	if s == 36 then
+		add(windowkids, a)
+		goalrats += 1
+	elseif s == 37 then
+	 	join_table(a, papas)
+	end
+
+	return a
+end
+
+function wear_hat(a, h)
+	ungrab(h)
+
+	h.prevowner, h.wearer, h.clips, h.animkey, a.hat =
+		  a.owner,        a, a.clips, "default", h
+
+	h.flipoffset += a.flipoffset
+	leave_tables(h, layer1, bodies, cones)
+	join_table(h, bghats)
+
+	register_easer(h, xyt(get_hat_draw_pos(h)))
+
+	find_photo(a)
+	if a.photo and a.photo.h > 0 and level ~= 0 then
+		leave_tables(a.hat, grabbables)
+		return true
+	end
+end
+
+function unwear_hat(a, h)
+	h.prevowner, h.wearer, h.clips, a.hat = h.wearer
+	h.flipoffset -= a.flipoffset
+	leave_tables(h, bghats)
+end
+
+function find_photo(a)
+	a.photo = nil
+
+	for p in all(photos) do
+		if p.s == a.s and p.h == (a.hat and a.hat.s or 0) and p.state == 1 then
+			a.photo = p
+		end
+	end
+end
+
+function update_head(a)
+	if a.state == 1 then
+		find_photo(a)
+
+		if a.anim:is_done() then
+			a.animkey = "default"
+		end
+	end
+
+	if not a.hat and a.state < 3 and a.visible then
+		local box = get_box(a, a.hatbox)
+		for h in all(hats) do
+			if a ~= h.prevowner and overlap(h, box) and h.vy > 0 and h.y < box.y then
+				freezeframes = 5
+				add(freezeactors, a)
+				a.animkey = "flash"
+
+				sfx(53, -1, wear_hat(a, h) and 29 or 24, 3)
+
+				break
+			end
+		end
+	end
+end
+
+function update_papa(a)
+	local box = get_box(a, a.papabox)
+	for r in all(rats) do
+		if overlap(r, box) then
+			sfx(56)
+			donerats += 1
+
+			local windowkid = windowkids[donerats]
+			local dst = xyt(windowkid.x, windowkid.y)
+			windowkid.x, windowkid.y, windowkid.visible = r.x, r.y, true
+			register_easer(windowkid, dst)
+
+			a.state, a.animkey, a.target = 2, "flash", windowkid
+
+			ungrab(r)
+			del_actor(r)
+
+			if state == state_play and #rats == 0 then
+				hide_photo(photos[#photos])
+			end
+
+			a.cr = cocreate(function()
+				wait_for_anim(a)
+				a.animkey = "eat"
+				wait(20)
+				a.target = player
+				wait_for_anim(a)
+				a.state, a.animkey = 1, "default"
+			end)
+		end
+	end
+end
+
+function draw_emote(a)
+	local emote = a.anim:get_frame_props().emote
+	if emote then
+		print(emote.char, a.x + emote.x, a.y + emote.y, emote.c)
+	end
+end
+
+function hide_photo(p)
+	p.state = 2
+
+	level_cr(function()
+		for i = 0, 60 do
+			p.offset.y = curve_interp(i / 60) * -18
+			if i % 4 == 0 then
+				p.visible = not p.visible
+			end
+			yield() 
+		end
+
+		del(photos, p)
+	end)
+end

@@ -1,0 +1,10 @@
+function update_camera()
+	camx = min(player.x - 40, camx)
+	camx = max(player.x + player.w - (128 - 40), camx)
+	camy = min(player.y - 40, camy)
+	camy = max(player.y + player.h - (128 - 40), camy)
+
+ 	camx, camy =
+		flr(mid(cam_minx, camx, cam_maxx)),
+		flr(mid(cam_miny, camy, cam_maxy))
+end

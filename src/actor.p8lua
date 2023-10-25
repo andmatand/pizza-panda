@@ -1,0 +1,57 @@
+function add_actor(a, x, y)
+	a = deep_copy(a)
+	a.tables, a.x, a.y = {actors}, x, y
+
+	for tn in all(split(a.tablenames, ",")) do
+		local t = _ENV[tn]
+		join_table(a, t)
+		if t == bodies then
+			init_body(a)
+			add_defaults(a, data_table_15)
+		elseif t == skins then
+			init_anim_tables(a)
+			add_defaults(a, data_table_16)
+			update_skin(a)
+		end
+	end
+
+	return add(actors, a)
+end
+
+function join_table(a, t)
+	del(t, a)
+	add(t, a)
+	del(a.tables, t)
+	add(a.tables, t)
+end
+
+function leave_tables(a, ...)
+	for t in all{...} do
+		del(t, a)
+		del(a.tables, t)
+	end
+end
+
+function init_anim_tables(a)
+	for o in all{a, unpack(a.subskins or {})} do
+		for k, data in pairs(o.anims) do
+			if not data.i then
+				o.anims[k] = new_anim(unpack(data))
+			end
+		end
+	end
+end
+
+function del_actor(a)
+	leave_tables(a, unpack(a.tables))
+	del(coroutines, a.cr)
+	foreach({a.hat}, del_actor)
+end
+
+function add_defaults(t, defaults)
+	for k, v in pairs(deep_copy(defaults)) do
+		if t[k] == nil then
+			t[k] = v
+		end
+	end
+end

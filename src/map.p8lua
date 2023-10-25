@@ -1,0 +1,174 @@
+function parse_map()
+	env_set(data_table_23)
+	local wallfixes = {}
+
+	if state ~= state_overworld then
+		for mx = 0, 12, 2 do
+			local s, h = mget(mx, 0), mget(mx + 1, 0)
+			if s ~= 0 then
+				add_actor(
+					merge_shallow(data_table_61, {s = s, h = h}),
+					-12,
+					2
+				)
+
+				if s > 37 then
+					goalpies += 1
+				end
+			end
+		end
+
+		targettime = mget(14 + (nitemode and 1 or 0), 0) * 60
+
+		-- clear the top row of the map
+		memset(0x8000, 0, 16)
+	end
+
+	for my = 1, map_h - 1 do
+		for mx = 0, map_w - 1 do
+			local s, x, y = mget(mx, my), mx * 8, my * 8
+
+			local func = data_table_12[s]
+			if func then
+				_ENV[func](x, y, s)
+			elseif s == 1 then
+				player.x, player.y, player.dirx = x - 8, y - 2, sgn(64 - x)
+			elseif s >= 25 and s <= 28 then
+				local h = add_hat(x, y, s)
+				wear_hat(heads[#heads], h)
+				h.easespd = 1
+			elseif s == 6 then
+				add_rat(x, y, find_next_tile(mx, my, 1, 0, 7) * 8)
+			elseif s == 45 then
+				-- determine bounding box for portal's NPCs
+				local mx2, my2, s = find_next_tile(mx, my, 0, -1, 114, 115)
+				local mx3 = find_next_tile(
+					mx2, my2,
+					s == 114 and 1 or -1,
+					0,
+					s == 114 and 115 or 114
+				)
+				local x1, x2, y1 = min(mx2, mx3) * 8, max(mx2, mx3) * 8, my2 * 8
+
+				add_portal(x, y,
+					mget(mx + 1, my),
+					{
+						x = x1,
+						y = y1,
+						w = x2 - x1 + 1,
+						h = y - y1 + 9,
+					})
+				mset(mx + 1, my, 46)
+			end
+			
+			if fget(s, 7) then
+				add(wallfixes, pack(fix_wall(mx, my, s)))
+			end
+		end
+	end
+
+	for f in all(wallfixes) do
+		mset(unpack(f))
+	end
+
+	for i, p in pairs(portals) do
+		local l = p.level
+		p.locked = l > furthestlevel + 1 and l <= credits_level
+		add(signs, {
+			data_table_9[l] or
+			(
+				"  " .. l .. (l < 10 and " " or "") .. "\-h\|fST"
+			),
+			p.x - 16,
+			p.y,
+			p.locked and 6 or 7,
+		})
+
+		local status = starstat[l]
+		if status > 0 then
+			local star = add_actor(
+				merge_shallow(data_table_43, {
+					status = status,
+				}),
+				p.x + 6,
+				p.y - 4
+			)
+
+			if l == newstarlevel then
+				if status >= starcounttype then
+					starcount -= 1
+				end
+
+				newstarlevel = nil
+				level_cr(function()
+					star.visible = false
+					env_exec(data_table_78) -- wait, play sfx
+					star.visible, star.animkey = true, "spawn"
+					wait(35)
+
+					if status >= starcounttype then
+						starcount += 1
+					end
+				end)
+			end
+		end
+	end
+
+	if level == 0 then
+		local visiblenpcs = {}
+
+		for p in all(portals) do
+			if p.level <= furthestlevel then
+				for a in all(npcs) do
+					if overlap(a, p.npcbox) then
+						visiblenpcs[a] = true
+					end
+				end
+			end
+		end
+
+		for a in all(npcs) do
+			if not visiblenpcs[a] then
+				del_actor(a)
+			end
+		end
+	end
+end
+
+function find_next_tile(mx, my, dx, dy, s1, s2)
+	local s
+
+	repeat
+		mx += dx
+		my += dy
+		s = mget(mx, my)
+	until s == s1 or s == s2
+
+	return mx, my, s
+end
+
+function add_portal(x, y, level, npcbox)
+	add(portals, {
+		x = x + 5,
+		y = y,
+		level = level,
+		npcbox = npcbox
+	})
+end
+	
+function fix_wall(mx, my, s)
+	for tiles in all(data_table_20) do
+		local neighborcount = 0
+		for s in all(tiles) do
+			for offset in all(data_table_21) do
+				if mget(mx + offset[1], my + offset[2]) == s then
+					neighborcount += 1
+				end
+			end
+		end
+
+		if neighborcount >= 2 then
+			return mx, my, tiles[fget(s, 6) and 4 or 1]
+		end
+	end
+end

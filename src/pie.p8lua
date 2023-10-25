@@ -1,0 +1,16 @@
+function add_pie(x, y)
+	local a = add_actor(data_table_35, x, y)
+
+	level_cr(function()
+		freezeframes, freezeactors = 24, {a}
+		wait(45)
+		a.paused = false
+		leave_tables(a, layer3)
+	end)
+end
+
+function update_pie(a)
+	if a.support then
+		jump(a, 1)
+	end
+end

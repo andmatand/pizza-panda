@@ -1,0 +1,18 @@
+function add_gator(x, y)
+	local a = add_actor(data_table_27, x + 3, y)
+
+	for c in all(data_table_25) do
+		add(a.clips, get_box(a, c))
+	end
+end
+
+function update_gator(a)
+	if a.animkey == "default" and player.support and
+		 player.y + player.h == a.y and overlap(player, get_box(a, a.box)) then
+		sfx(53, -1, 0, 18)
+		a.animkey = "boing"
+
+		jump(player, 3.6)
+		player.isboinging = true
+	end
+end

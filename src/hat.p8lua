@@ -1,0 +1,24 @@
+function add_hat(_, _, s)
+	local a = add_actor(data_table_30)
+	init_anim_tables(a)
+
+	overlay(a, data_table_28[s])
+	a.anims.default.indexes, a.s = {s}, s
+
+	return a
+end
+
+function update_hat(a)
+	if a.wearer and not a.iseasing then
+		a.dx, a.dy = get_hat_draw_pos(a)
+		a.dirx = a.wearer.dirx
+	end
+end
+
+function get_hat_draw_pos(a)
+	return add_coords(
+		xyt(get_draw_offset(a.wearer, a.wearer.anim)),
+		a.weareroffset,
+		a.wearer.hatoffset
+	)
+end

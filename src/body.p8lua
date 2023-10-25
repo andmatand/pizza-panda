@@ -1,0 +1,126 @@
+function init_body(a)
+	a.checkpoint, a.old, a.maxx = xyt(a.x, a.y), {}, mapw_px - a.w + 1
+end
+
+function respawn_rat(a)
+	register_easer(a, a.checkpoint)
+	a.vx, a.vy, a.easespd, a.paused = 0, 0, 0, true
+	del(coroutines, a.flashcr)
+	a.flashcr = level_cr(function()
+		-- turn red
+		a.palette = data_table_36
+
+		-- play sfx, wait
+		env_exec(data_table_58)
+
+		join_table(a, grabbables)
+
+		a.animkey, a.palette = "flash"
+		wait(10)
+		a.easespd, a.paused = 1
+	end)
+end
+
+function update_body(a)
+	if a == player and a.support then
+		a.checkpoint = xyt(a.support.x, a.y)
+	end
+
+	if not a.paused then
+		update_physics(a)
+	end
+end
+
+function update_physics(a)
+	local _g, mid, _ENV = _ENV, mid, a
+
+	vx *= support and grounddragx or airdragx
+	vy += gravity
+
+	vx, vy = mid(-maxvx, vx, maxvx),
+					 mid(isboinging and -32768 or -maxvy, vy, maxvy)
+
+	if _g.abs(vx) <= 0.1 then
+		vx = 0
+	end
+
+	local testx, testy = x + vx, y + vy
+	local diffy, hity, support = testy - y, false
+
+	-- if we hit the edge of the screen
+	if testx < minx or testx > maxx then
+		vx *= -elasticity
+	end
+	x = mid(minx, testx, maxx)
+
+	if diffy >= 0 then
+		local inc, y0 = diffy / maxvy
+		for i = 0, maxvy do
+			y0 = y + (inc * i)
+
+			local p = _g.find_map_platform(a, x, y0)
+			if p then
+				support = p
+				hity = true
+				break
+			end
+		end
+	end
+
+	local hitv = 0
+	if hity then
+		hitv = vy
+		vy = -vy * elasticity
+		if _g.abs(vy) <= 0.1 then
+			vy = 0
+		end
+	else
+		y = testy
+	end
+
+	_g.set_support(a, support, hitv)
+end
+
+function find_map_platform(a, x, y)
+	if flr(y + a.h) % 8 ~= 0 then
+		return false
+	end
+
+	local y2, inc =
+		(y + a.h) / 8,
+		(a.w - 1) / x_check_count
+
+	for i = 0, x_check_count do
+		local x2 = min((x + (inc * i)) / 8, map_w - 1)
+		if fget(mget(x2, y2), 1) then
+			return xyt(flr(x2) * 8, flr(y2 * 8))
+		end
+	end
+end
+
+function set_support(a, p, hitv)
+	if a.support == p then
+		return
+	end
+
+	if p then
+		a.y = p.y - a.h
+		if p.vy and hitv then
+			p.vy += hitv
+		end
+		a.isboinging = false
+	end
+
+	a.support = p
+end
+
+function jump(a, dy)
+	a.vy -= dy
+	set_support(a, nil)
+
+	if a == player then
+		for h in all(hats) do
+			h.prevowner = nil
+		end
+	end
+end

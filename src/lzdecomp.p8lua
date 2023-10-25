@@ -1,0 +1,41 @@
+function lz_decomp(dst, src)
+	local len = peek2(src)
+	src += 2
+	local start = src
+	while src - start < len do
+		local v, jump, jlen = peek(src, 3)
+		if v == 255 then
+			src += 2
+		end
+
+		if v == 255 and jlen > 0 then
+			for i = 0, jlen - 1 do
+				poke(dst + i, @(dst - jump + i))
+			end
+			dst += jlen
+		else
+			poke(dst, v)
+			dst += 1
+		end
+
+		src += 1
+	end
+
+	return dst
+end
+
+function decomp_level(dx, dy, addr)
+	lz_decomp(0x4300, addr)
+	addr = 0x4300
+
+	local w, h = peek(addr, 2)
+	addr += 2
+	local i = 0
+	while i < w * h do
+		mset(dx + (i % w), dy + flr(i / w), @addr)
+		i += 1
+		addr += 1
+	end
+
+	return w, h
+end

@@ -1,0 +1,108 @@
+function add_coords(...)
+	local x, y = 0, 0
+
+	for a in all{...} do
+		if a then
+			x += a.x or 0
+			y += a.y or 0
+		end
+	end
+
+	return x, y
+end
+
+function merge_shallow(...)
+	local m = {}
+
+	for n = 1, select("#", ...) do
+		local t = select(n, ...)
+		overlay(m, t, true)
+	end
+
+	return m
+end
+
+function approach(dest, v, speed)
+	if abs(dest - v) < 1 then
+		return dest
+	end
+	return v + ((dest - v) * speed)
+end
+
+function txtw(s)
+	return print(s, 0, -128)
+end
+
+function ease_draw_pos(a, spd)
+	a._dx = approach(flr(a.x), a._dx, spd)
+	a._dy = approach(flr(a.y), a._dy, spd)
+
+	if a._dx > a.x then
+		a.dx = flr(a._dx)
+	else
+		a.dx = ceil(a._dx)
+	end
+	if a._dy > a.y then
+		a.dy = flr(a._dy)
+	else
+		a.dy = ceil(a._dy)
+	end
+end
+
+function is_done_easing(a)
+	return abs(a.dx - a.x) < 1 and abs(a.dy - a.y) < 1
+end
+
+function rnd_int(a, b)
+	return flr(rnd((b + 1) - a)) + a
+end
+
+function deep_copy(t)
+	local t2 = {}
+	for k, v in pairs(t) do
+		if type(v) == "table" then
+			t2[k] = deep_copy(v)
+		else
+			t2[k] = v
+		end
+	end
+	return t2
+end
+
+function overlay(t, t2, shallow)
+	for k, v in pairs(t2) do
+		local v0 = t[k]
+		if type(v0) == "table" and type(v) == "table" and not shallow then
+			overlay(v0, v)
+		else
+			t[k] = v
+		end
+	end
+end
+
+function bezier(path, v)
+	local points = {}
+	for i = 1, #path - 1 do
+		local a, b = path[i], path[i + 1]
+		add(points, {
+			x = lerp(a.x, b.x, v),
+			y = lerp(a.y, b.y, v)
+		})
+	end
+
+	if #points == 1 then
+		return points[1]
+	end
+
+	return bezier(points, v)
+end
+
+function lerp(a, b, v)
+	return a + ((b - a) * v)
+end
+
+function wait(n)
+	for i = 1, n do
+		yield()
+	end
+end

@@ -1,0 +1,19 @@
+function new_timer(frames)
+	return {
+		len = frames,
+		v = frames,
+		reset = function (self)
+			self.v = self.len
+		end,
+		update = function (self)
+			if self.v > 1 then
+				self.v -= 1
+			else
+				return true
+			end
+		end,
+		is_done = function (self)
+			return self.v == 1
+		end,
+	}
+end

@@ -1,0 +1,123 @@
+function update_grabber(a)
+	for b in all(a.grabberboxes) do
+		local box = get_box(a, b)
+		box.y -= 1
+		box.h += 1
+
+		for g in all(grabbables) do
+			if overlap(box, g) then
+				if grab(g, a) then
+					sfx(59)
+				end
+			end
+		end
+	end
+end
+
+function grab(a, owner)
+	if a.owner == owner then
+		return
+	end
+
+	if a.ishat then
+		if owner == a.prevowner or (a.wearer and owner.vy >= 0) then
+			return
+		end
+		if a.wearer then
+			unwear_hat(a.wearer, a)
+		end
+
+		owner.hatcount += 1
+		if level == 0 and owner.hatcount == 14 then
+			env_exec(data_table_67)
+		end
+	elseif a.ispie then
+		join_table(a, foods)
+	end
+
+	leave_tables(a, layer2, bodies)
+	join_table(a, layer1)
+
+	add(owner.grabberboxes, {
+		w = 8,
+		h = a.h,
+		offset = xyt(4),
+		actor = a,
+	})
+	refresh_grabberboxes(owner)
+
+	a.owner, a.vy, a.needsease = owner, 0, true
+
+	return true
+end
+
+function ungrab(a)
+	local owner = a.owner
+	if not owner then
+		return
+	end
+
+	for b in all(owner.grabberboxes) do
+		if b.actor == a then
+			del(owner.grabberboxes, b)
+			break
+		end
+	end
+	refresh_grabberboxes(owner)
+
+	a.vy, a.owner = 0
+
+	if a.ishat then
+		owner.hatcount -= 1
+	end
+end
+
+function refresh_grabberboxes(a)
+	local igb1, prev = player.itemgetterboxes[1]
+	for b in all(a.grabberboxes) do
+		if prev then
+			b.offset.y = prev.offset.y - b.h
+		end
+		prev = b
+		igb1.offset.y, igb1.h = b.offset.y, abs(b.offset.y) + 8
+	end
+end
+
+function update_grabber_stack(owner)
+	local boxes, prevactor = owner.grabberboxes
+
+	local frameoffset = owner.anim:get_frame_props().offset or {}
+	for i = 2, #boxes do
+		local box = get_box(xyt(owner.dx, owner.dy), boxes[i])
+		local a = box.actor
+		local y, x = a.y, center_x_in_box(a, box)
+
+		local diffx = x - a.x
+		if sgn(diffx) ~= a.dirx then
+			for t in all(a.tail) do
+				t.x += diffx * .96
+			end
+		end
+
+		a.vy = min(a.vy + 0.1, owner.maxvy)
+		y += a.vy
+
+		local maxy = box.y
+		if prevactor then
+			maxy = min(maxy, prevactor.y)
+		end
+		if y >= maxy then
+			y = maxy
+			a.vy = abs(a.vy) * -0.15
+		end
+
+		if a.needsease then
+			a.needsease = false
+			register_easer(a, xyt(x, y))
+		end
+
+		a.x, a.y = x, y
+		set_draw_pos(a, x, y + (frameoffset.y or 0))
+		prevactor = a
+	end
+end

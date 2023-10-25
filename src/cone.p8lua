@@ -1,0 +1,22 @@
+function add_cone(x, y)
+	add_actor(data_table_37, x + 1, y + 2)
+end
+
+function update_cone(a)
+	if overlap(player, a) then
+		if not a.didsfx then
+			a.didsfx = true
+			sfx(52)
+		end
+		local m = rnd_int(90, 100) / 100
+		a.vx += sgn(player.vx) * m
+		a.vy += sgn(player.vy) * m
+		a.dirx, a.animkey = player.dirx, "hit"
+	else
+		a.didsfx = false
+	end
+
+	if level == 0 and a.y <= -32 then
+		env_exec(data_table_69)
+	end
+end

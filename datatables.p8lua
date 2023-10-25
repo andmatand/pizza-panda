@@ -1,0 +1,1712 @@
+-- begin constants that were part of minifier process but are moved here for
+-- the public source code release
+constants = {
+	credits_level = 21,
+	max_level = 26,
+	state_credits = -1,
+	state_lastpie = 10,
+	state_load = 3,
+	state_overworld = 2,
+	state_play = 9,
+	state_ready = 7,
+	state_score = 4,
+	state_score_wipe = 5,
+	state_set = 8,
+	state_start = 1,
+	state_title = 0,
+	state_wipe = 6,
+	x_check_count = 3,
+}
+for k, v in pairs(constants) do
+	_ENV[k] = v
+end
+-- end constants
+
+data_tables = {}
+
+-- photo_palette
+data_tables[1] = {5, 5, 5, 6, 5, 6, 7, 13, 6, 7, 6, 6, 13, 13, 5}
+
+-- score_line_palettes
+data_tables[2] = {
+	{11,  3,  3},
+	{11, 11,  3},
+	{11, 11, 11},
+	{ 3, 11, 11},
+	{ 3,  3, 11},
+	{ 3,  3,  3},
+}
+
+-- car actor
+local car = {
+	tablenames = "bodies,skins,layer0",
+	w = 16,
+	h = 10,
+	ac = .23,
+	grounddragx = .9,
+	airdragx = .95,
+	maxvx = 2,
+	maxvy = 3,
+
+	anims = { -- cockpit panda
+		default = {1, 1, {9, 9}, 7, true, {sync = true, [2] = {offset = {y = 1}}}},
+		walk = {1, 1, {9, 9}, 5, true, {sync = true, [2] = {offset = {y = 1}}}},
+		jump = {1, 1, {9, 9, 9}, 4},
+		fall = {1, 1, {9, 9}, 4},
+		land = {1, 1, {9, 9}, 3, false, {
+			{offset = {y = 2}},
+			{offset = {y = 2}},
+		}},
+		intro = {1, 1, {9}},
+	},
+	offset = {x = 5, y = -1},
+	flipoffset = -2,
+	paltbits = 0b0000000000000100,
+	blinkpal = {[1] = 7},
+	subskins = {
+		{ -- wheels
+			anims = {
+				default = {3, 1, {16, 16}, 5},
+				walk = {3, 1, {16, 16}, 5, true, {
+					[2] = {
+						palette = {[1] = 0},
+						paltbits = 0b0010000101000100,
+					}
+				}},
+				jump = {3, 1, {16, 16, 16}, 4, false, {
+					[1] = {offset = {y = 2}},
+					[2] = {offset = {y = 1}},
+				}},
+				fall = {3, 1, {16, 16}, 4, false, {
+					[1] = {offset = {y = 1}},
+				}},
+				land = {3, 1, {16, 16}, 3, false},
+				intro = {3, .4, {16}, 0, false, {[1] = {paltbits = 0b0100000000000000}}},
+			},
+			offset = {x = -2, y = 7},
+			flipoffset = -4,
+			palette = {[2] = 0, [13] = 12},
+			paltbits = 0b0100000000000100,
+		},
+		{ -- car body
+			anims = {
+				default = {3, 1, {0, 0}, 7, true, {sync = true, [2] = {offset = {y = 1}}}},
+				walk = {3, 1, {0, 0}, 5, true, {sync = true, [2] = {offset = {y = 1}}}},
+				jump = {3, 1, {0, 0, 0}, 4},
+				fall = {3, 1, {0, 0}, 4},
+				land = {3, 1, {0, 0}, 3, false, {
+					{offset = {y = 2}},
+					{offset = {y = 1}},
+				}},
+				intro = {3, 1, {0}, 0, false, {
+					[1] = {
+						paltbits = 0b1000000000000100,
+						--palette = {[13] = 12, [15] = 6}
+						palette = {[15] = 6}
+					}
+				}},
+			},
+			offset = {x = -2, y = -1},
+			flipoffset = -4,
+			paltbits = 0b1000000000000101,
+		}
+	},
+
+	grabberboxes = {
+		{
+			w = 13,
+			h = 4,
+			offset = {x = 2, y = -1},
+			flipoffset = 1,
+		}
+	},
+	hatcount = 0,
+
+	itemgetterboxes = {
+		{
+			w = 7,
+			h = 9,
+			offset = {x = 5, y = -1},
+		},
+		{
+			w = 20,
+			h = 4,
+			offset = {y = 4},
+			flipoffset = -3,
+		},
+	},
+}
+data_tables[3] = {
+	{"add_actor", car, 60, 366},
+}
+
+-- screenpal 
+data_tables[4] = {
+	[2] = 141,
+	[3] = 131,
+	[9] = 137,
+	[15] = 132,
+}
+
+-- speed_line_offsets
+data_tables[5] = {
+	[-1] = {
+		{16, 0},
+		{19, 3},
+		{21, 6},
+	},
+	[1] = {
+		{0, 0},
+		{-3, 3},
+		{-5, 6},
+	}
+}
+
+data_tables[6] = {
+	"timer:    off >",
+	"timer: < auto >",
+	"timer: <  on",
+}
+
+-- env_exec: draw neon stripe background
+data_tables[7] = {
+	{"sspr", 48, 96, 8, 24, 0, 51, 128, 25},
+	{"pal"},
+}
+
+-- first env_exec in readyset
+data_tables[8] = {
+	{"resume_music"},
+	{"ease", 192, 64, "readysetx", 10},
+	{"sfx", 49, 3, 0, 1},
+	{"env_set", {
+		maxphotow = 44,
+		state = state_set,
+		showarrow = true,
+	}},
+}
+
+-- street name overrides
+data_tables[9] = {
+	[21] = "\-qend",
+	[23] = "  b1" .. "\-h\|fST",
+	[24] = "  b2" .. "\-h\|fST",
+	[25] = "  b3" .. "\-h\|fST",
+}
+
+-- score_line_palettes transparency
+data_tables[10] = {
+	0b1011000000000000, -- {11,  3,  3},
+	0b1001000000000000, -- {11, 11,  3},
+	0b1000000000000000, -- {11, 11, 11},
+	0b1100000000000000, -- { 3, 11, 11},
+	0b1110000000000000, -- { 3,  3, 11},
+	0b1111000000000000, -- { 3,  3,  3},
+}
+
+-- env_overlay: after decomp_level, override special values per level
+data_tables[11] = {
+	[0] = { -- overworld level
+		map_w = 48,
+		map_h = 48,
+		bg_sx = 80,
+		bg_sy = 16,
+	},
+	[20] = {
+		bg_sy = 48,
+	},
+	[21] = { -- credits level
+		bg_sy = 32,
+	}
+}
+
+-- tile_func
+data_tables[12] = {
+	[8] = "add_slice",
+	[19] = "add_cone",
+	[34] = "add_gator",
+	[36] = "add_head",
+	[37] = "add_head",
+	[38] = "add_eater",
+	[39] = "add_eater",
+	[40] = "add_eater",
+	[41] = "add_eater",
+	[42] = "add_eater",
+	[43] = "add_eater",
+	[44] = "add_eater",
+	[192] = "add_pie",
+}
+
+-- play jump sfx in intro
+data_tables[13] = {
+	{"sfx", 63},
+	{"wait", 4},
+}
+
+-- level star color: key is level completion status
+data_tables[14] = {
+	-- 0: not completed yet
+	[1] =  6, -- silver
+	[2] = 10, -- gold
+	[3] = 15, -- nitemode
+}
+
+-- bodies actor defaults
+data_tables[15] = {
+	w = 8,
+	h = 8,
+	vx = 0,
+	vy = 0,
+	dirx = 1,
+	maxvx = 4,
+	maxvy = 4,
+	minx = 0,
+	maxx = 32767,
+	grounddragx = 1,
+	airdragx = 1,
+	gravity = 0.1,
+	elasticity = 0,
+}
+
+-- skins actor defaults
+data_tables[16] = {
+	animkey = "default",
+	flipoffset = 0,
+	visible = true,
+	blinkframes = 0,
+	palette = {},
+	x = 0,
+	y = 0,
+}
+
+data_tables[17] = {
+	{"ease", 0, 1, "wipescale", 17}
+}
+
+-- panda actor
+panda = {
+	tablenames = "bodies,skins,layer1",
+	w = 5,
+	h = 8,
+	dirx = 1,
+	vx = 0,
+	ac = .13,
+	gravity = .16,
+	grounddragx = .80,
+	airdragx = .92,
+	paltbits = 0b0000000000001000,
+	anims = {
+		default = {1, 1, {10}, 0, true},
+		walk = {1, 1, {11, 10, 12, 10}, 8, true, {
+			[2] = {offset = {y = -1}},
+			[4] = {offset = {y = -1}},
+		}},
+		jump = {1, 1, {13}},
+		land = {1, 1, {13}, 3},
+		dance = {1, 1, {
+			11, 13, 13,
+			11, 13, 13,
+		}, 7, true, {
+			[1] = {altdelay = true},
+			[2] = {offset = {y = -2}},
+			[3] = {flipx = true, offset = {y = -2}},
+
+			[4] = {altdelay = true, flipx = true},
+			[5] = {flipx = true, offset = {y = -2}},
+			[6] = {offset = {y = -2}},
+		}, 14},
+	},
+	offset = {
+		x = -1,
+		y = 0,
+	},
+	flipoffset = -1,
+
+	grabberboxes = {
+		{
+			w = 8,
+			h = 4,
+			offset = {x = 0, y = -1},
+		}
+	},
+
+	itemgetterboxes = {
+		{
+			w = 8,
+			h = 8,
+			offset = {x = 0, y = 0},
+		},
+	},
+}
+data_tables[18] = {
+	{"add_actor", panda, 0, 366},
+}
+
+-- env_exec: enable nitemode
+data_tables[19] = {
+	{"sfx", 51},
+
+	{"env_overlay", {
+		nitemode = true,
+		data_table_4 = { -- modify the screen palette
+			[5] = 128 + 5,
+			[12] = 128 + 1,
+		},
+	}},
+
+	{"poke", 0x5f55, 0x00}, -- use the spritesheet as screen memory
+
+	-- overwrite the cloud sprite (63) and sprite 29 with a space bg tile
+	{"palt", 0, false},
+	{"spr", 255, 120, 24},
+	{"spr", 255, 104, 8},
+	{"palt"},
+
+	{"poke", 0x5f55, 0x60}, -- use screen as screen again
+
+	{"read_cartdata"}, -- refresh starcount (which now counts nitemode stars)
+}
+
+-- wall_tile_sets
+data_tables[20] = {
+	{64, 65, 66, 67, 68, 69},
+	{80, 81, 82, 83, 84, 85},
+	{96, 97, 98, 99, 100, 101},
+}
+
+-- wall neighbor checks (offsets for mx, my)
+data_tables[21] = {
+	{ 0, -1},
+	{ 1,  0},
+	{ 0,  1},
+	{-1,  0},
+}
+
+-- env_exec: coroutine to move trophy down during credits
+data_tables[22] = {
+	{"ease", -48, -3, "trophyy", 210},
+}
+
+-- map init overlay
+data_tables[23] = {
+	goalpies = 0,
+	donepies = 0,
+	goalrats = 0,
+	donerats = 0,
+}
+
+-- head actor
+data_tables[24] = {
+	tablenames = "facers,heads,npcs,skins",
+	w = 8,
+	h = 8,
+
+	anims = {
+		default = {1, 1, {1, 1}, 3, true, {
+			[2] = {offset = {y = 1}}
+		}},
+		flash = {1, 1, {1, 1}, 6, false, {
+			{palette = {14,14,14,14,14,14,14,14,14,14,14,14,14,14,14}},
+			{palette = {7,7,7,7,7,7,7,7,7,7,7,7,7,7,7}},
+		}},
+		eat = {1, 1, {2, 1, 2, 1, 2, 1}, 14, false, {
+			{eatv = 0.2},
+			{eatv = 0.4},
+			{eatv = 0.6, emote = {char = "♥", x = 0, y = -7, c = 14}},
+			{eatv = 0.8, emote = {char = "♥", x = 2, y = -9, c = 14}},
+			{eatv = 1,   emote = {char = "♥", x = 0, y = -11, c = 14}},
+			{eatv = 1},
+		}},
+		eat_and_barf = {1, 1, {2, 1, 2, 2, 2, 2, 1}, 14, false, {
+			{eatv = 0.2},
+			{eatv = 0.3},
+			{eatv = 0.45},
+			{eatv = 0.45, emote = {char = "?", x = 1, y = -7, c = 7}},
+			{eatv = 0.45, emote = {char = "?", x = 3, y = -9, c = 7}},
+			{eatv = 0.45, emote = {char = "?", x = 3, y = -9, c = 7}},
+			{eatv = 0},
+		}},
+		hide = {1, 1, {1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1}, 1, false, {
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{},
+			{offset = {y = 1}},
+			{offset = {y = 1}},
+			{offset = {y = 1}},
+			{offset = {y = 1}},
+			{offset = {y = 1}},
+			{offset = {y = 2}},
+			{offset = {y = 2}},
+			{offset = {y = 2}},
+			{offset = {y = 3}},
+			{offset = {y = 3}},
+			{offset = {y = 3}},
+			{offset = {y = 3}},
+			{offset = {y = 4}},
+			{offset = {y = 4}},
+			{offset = {y = 5}},
+			{offset = {y = 5}},
+			{offset = {y = 5}},
+			{offset = {y = 6}},
+			{offset = {y = 6}},
+			{offset = {y = 7}},
+			{offset = {y = 7}},
+			{offset = {y = 8}},
+			{offset = {y = 8}},
+			{offset = {y = 9}},
+			{offset = {y = 9}},
+			{offset = {y = 10}},
+			{offset = {y = 10}},
+			{offset = {y = 11}},
+			{offset = {y = 12}},
+		}},
+	},
+	clips = {},
+	flipoffset = -1,
+	palette = {[1] = 0, [5] = 0},
+	blinkpal = {[1] = 6},
+	offset = {x = 0, y = 0},
+
+	eatv = 0,
+	eaterbox = {
+		w = 11,
+		h = 10,
+		offset = {x = -2, y = 6},
+	},
+	state = 1,
+
+	hatbox = {
+		w = 10,
+		h = 3,
+		offset = {x = -1, y = -1},
+	},
+
+	papabox = {
+		w = 10,
+		h = 10,
+		offset = {x = -1, y = -1},
+	},
+}
+
+-- manholeclips
+data_tables[25] = {
+	{offset = {x = 0, y = -4}, w = 11, h = 6},
+	{offset = {x = 1, y =  2}, w = 7, h = 1},
+}
+
+-- second env_exec in readyset
+data_tables[26] = {
+	{"sfx", 49, 3, 2, 1},
+	{"ease", 64, -64, "readysetx", 10},
+	{"env_set", {
+		readysettxt = false,
+	}},
+}
+
+-- gator actor
+data_tables[27] = {
+	tablenames = "gators,skins,dskins",
+	anims = { -- gator
+		default = {2, 1, {32}},
+		boing = {
+			2,
+			1,
+			{32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32},
+			4,
+			false, {
+				{offset = {y = -3}},
+				{offset = {y = -5}},
+				{offset = {y = -6}},
+				{offset = {y = -6}},
+				{offset = {y = -6}},
+				{offset = {y = -6}},
+				{offset = {y = -5}},
+				{offset = {y = -4}},
+				{offset = {y = -3}},
+				{offset = {y = -1}},
+				{offset = {y =  0}},
+				{offset = {y =  2}},
+				{offset = {y =  3}},
+				{offset = {y =  4}},
+				{offset = {y =  6}},
+				{offset = {y =  7}},
+				{offset = {y =  8}},
+			}
+		},
+	},
+	offset = {y = 2},
+	flipoffset = -7,
+	subskins = {
+		{ -- lid
+			anims = {
+				default = {2, 1, {48}, 0, false, {[1] = {offset = {y = -3}}}},
+				boing = {
+					2,
+					1,
+					{48, 48, 48, 48, 48, 48, 48, 48, 48, 50, 50, 50, 52, 52, 52, 52, 52, 52, 50, 50, 50, 50, 50, 50, 50, 52, 52, 52, 52, 52, 52, 52, 52, 50, 50, 50, 50, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 48, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 50, 48, 48, 48},
+					1, false, {
+						[1] = {offset = {y = -7}},
+						[2] = {offset = {y = -8}},
+						[3] = {offset = {y = -9}},
+						[4] = {offset = {y = -10}},
+						[5] = {offset = {y = -10}},
+						[6] = {offset = {y = -11}},
+						[7] = {offset = {y = -12}},
+						[8] = {offset = {y = -12}},
+						[9] = {offset = {y = -12}},
+						[10] = {offset = {y = -13}},
+						[11] = {offset = {y = -13}},
+						[12] = {offset = {y = -13}},
+						[13] = {offset = {y = -13}, w = 1},
+						[14] = {offset = {y = -13}, w = 1},
+						[15] = {offset = {y = -13}, w = 1},
+						[16] = {offset = {y = -14}, w = 1, flipx = true},
+						[17] = {offset = {y = -14}, w = 1, flipx = true},
+						[18] = {offset = {y = -14}, w = 1, flipx = true},
+						[19] = {offset = {y = -14}, flipx = true},
+						[20] = {offset = {y = -14}, flipx = true},
+						[21] = {offset = {y = -14}, flipx = true},
+						[22] = {offset = {y = -14}},
+						[23] = {offset = {y = -14}},
+						[24] = {offset = {y = -14}},
+						[25] = {offset = {y = -13}},
+						[26] = {offset = {y = -13}, w = 1},
+						[27] = {offset = {y = -13}, w = 1},
+						[28] = {offset = {y = -13}, w = 1},
+						[29] = {offset = {y = -13}, w = 1},
+						[30] = {offset = {y = -13}, w = 1, flipx = true},
+						[31] = {offset = {y = -13}, w = 1, flipx = true},
+						[32] = {offset = {y = -13}, w = 1, flipx = true},
+						[33] = {offset = {y = -13}, w = 1, flipx = true},
+						[34] = {offset = {y = -12}, flipx = true},
+						[35] = {offset = {y = -12}, flipx = true},
+						[36] = {offset = {y = -12}, flipx = true},
+						[37] = {offset = {y = -12}, flipx = true},
+						[38] = {offset = {y = -11}},
+						[39] = {offset = {y = -11}},
+						[40] = {offset = {y = -11}},
+						[41] = {offset = {y = -11}},
+						[42] = {offset = {y = -10}},
+						[43] = {offset = {y = -10}},
+						[44] = {offset = {y = -9}},
+						[45] = {offset = {y = -9}},
+						[46] = {offset = {y = -9}},
+						[47] = {offset = {y = -8}},
+						[48] = {offset = {y = -8}},
+						[49] = {offset = {y = -8}},
+						[50] = {offset = {y = -7}},
+						[51] = {offset = {y = -7}},
+						[52] = {offset = {y = -6}},
+						[53] = {offset = {y = -6}},
+						[54] = {offset = {y = -6}},
+						[55] = {offset = {y = -5}},
+						[56] = {offset = {y = -5}},
+						[57] = {offset = {y = -5}},
+						[58] = {offset = {y = -5}},
+						[59] = {offset = {y = -5}},
+						[60] = {offset = {y = -5}, flipx = true},
+						[61] = {offset = {y = -5}, flipx = true},
+						[62] = {offset = {y = -4}, flipx = true},
+						[63] = {offset = {y = -4}, flipx = true},
+						[64] = {offset = {y = -4}, flipx = true},
+						[65] = {offset = {y = -4}, flipx = true},
+						[66] = {offset = {y = -3}},
+						[67] = {offset = {y = -3}},
+						[68] = {offset = {y = -3}}
+					}
+				}
+			},
+			flipoffset = -7,
+		}
+	},
+	clips = {},
+	box = {
+		offset = {x = 1, y = -1},
+		w = 7,
+		h = 1,
+	},
+}
+
+-- hat actor overlays indexed by hat sprite number
+data_tables[28] = {
+	[19] = { -- cone hat
+		offset = {x = 0, y = -7},
+	},
+	[25] = { -- top hat
+		w = 6,
+		h = 5,
+		offset = {x = -1, y = -3},
+		weareroffset = {x = 1, y = -4},
+		flipoffset = 0,
+		palette = {[10] = 8},
+	},
+	[26] = { -- baseball cap
+		w = 5,
+		h = 3,
+		offset = {x = -2, y = -5},
+		weareroffset = {x = 1, y = -2},
+		flipoffset = 2,
+		palette = {[10] = 11},
+	},
+	[27] = { -- lady's hat
+		w = 8,
+		h = 4,
+		offset = {x = 0, y = -4},
+		weareroffset = {x = 0, y = -3},
+		flipoffset = 0,
+	},
+	[28] = { -- fez
+		w = 4,
+		h = 3,
+		offset = {x = -2, y = -5},
+		weareroffset = {x = 2, y = -2},
+		flipoffset = 0,
+	}
+}
+
+-- head clips[1]
+data_tables[29] = {
+	offset = {x = -2, y = -5},
+	w = 11,
+	h = 13,
+}
+
+-- hat actor
+data_tables[30] = {
+	tablenames = "grabbables,hats,skins",
+	anims = {
+		default = {1, 1, {0}}
+	},
+	offset = {},
+	weareroffset = {},
+	ishat = true,
+}
+
+-- explosion actor
+data_tables[31] = {
+	tablenames = "explosions,skins",
+	anims = {
+		default = {3, 3, {205, 205, 205, 205}, 8, false,
+			{
+				[1] = {paltbits = 0b1011110000000000, palette = {[1] =  7}},
+				[2] = {paltbits = 0b1101110000000000, palette = {[2] = 14}},
+				[3] = {paltbits = 0b1110110000000000, palette = {[3] =  7}},
+				[4] = {paltbits = 0b1111010000000000, palette = {[4] = 14}},
+			}
+		}
+	},
+	offset = {
+		x = -12,
+		y = -12
+	}
+}
+
+-- head type-specific property overlays
+data_tables[32] = {
+	[36] = { -- rat kid
+		offset = {x = 0},
+		flipoffset = 0,
+		visible = false,
+		blinkpal = {[1] = 13},
+		hatoffset = {y = 5},
+		hatbox = {
+			w = 10,
+			h = 3,
+			offset = {x = -1, y = 4},
+		},
+		anims = {
+			default = {
+				timer = {
+					len = 16
+				}
+			}
+		},
+	},
+	[37] = { -- rat papa
+		offset = {x = 1},
+		hatoffset = {y = 2},
+		palette = {[1] = 0, [6] = 14},
+		blinkpal = {[1] = 13},
+		anims = {
+			default = {
+				timer = {
+					len = 25
+				}
+			}
+		},
+	},
+	[38] = { -- dog 1 (shiba inu)
+		offset = {x = 1},
+		anims = {
+			default = {
+				timer = {
+					len = 26
+				}
+			}
+		},
+	},
+	[39] = { -- dog 2 (brown terrier-ish)
+		offset = {x = 1},
+		flipoffset = -2,
+		blinkpal = {[1] = 4},
+		anims = {
+			default = {
+				timer = {
+					len = 27
+				}
+			}
+		},
+	},
+	[40] = { -- dog 3 (floppy ears)
+		offset = {x = 1},
+		flipoffset = -2,
+		anims = {
+			default = {
+				timer = {
+					len = 28
+				}
+			}
+		},
+	},
+	[41] = { -- cat 1 (gray)
+		offset = {x = 1},
+		iscat = true,
+		anims = {
+			default = {
+				timer = {
+					len = 31
+				}
+			}
+		},
+	},
+	[42] = { -- cat 2 (tabby)
+		offset = {x = 1},
+		iscat = true,
+		blinkpal = {[1] = 9},
+		anims = {
+			default = {
+				timer = {
+					len = 32
+				}
+			}
+		},
+	},
+	[43] = { -- frog
+		offset = {x = 1},
+		flipoffset = -2,
+		palette = {[1] = 10, [5] = 0},
+		blinkpal = {[1] = 11},
+		anims = {
+			default = {
+				timer = {
+					len = 29
+				}
+			}
+		},
+	},
+	[44] = { -- seagull
+		offset = {x = 0},
+		flipoffset = 0,
+		blinkpal = {[1] = 7},
+		palette = {[1] = 0, [13] = 9},
+		anims = {
+			default = {
+				timer = {
+					len = 30
+				}
+			}
+		},
+	},
+}
+
+-- platform_ease_path
+data_tables[33] = {
+	{x =   0, y = 0},
+	{x = .10, y = 0},
+	{x = .20, y = 0},
+	{x = .80, y = 1},
+	{x = .90, y = 1},
+	{x =   1, y = 1},
+}
+
+-- nitemode colors for stars and speed-lines
+data_tables[34] = {
+	[0] = 9,
+	[1] = 14,
+	[2] = 10,
+	[3] = 14,
+}
+
+-- pie actor
+data_tables[35] = {
+	tablenames = "bodies,dskins,grabbables,layer2,layer3,pies,skins",
+	anims = {
+		default = {2, 2, {192}, 1, false, {
+			[1] = {
+				palette = {[4] = 4, [8] = 8},
+				paltbits = 0b1100000000000000,
+			},
+		}},
+		spawn = {2, 2,
+			{194,194,194,194,194,194,194,194,194,194,194,194,194}, 3, false, {
+				[1] = {offset = {y = 6}, paltbits = 0b1011111110000010},
+				[2] = {offset = {y = 6}, paltbits = 0b1001111110000010},
+				[3] = {offset = {y = 5}, paltbits = 0b1000111110000010},
+				[4] = {offset = {y = 5}, paltbits = 0b1000011110000010},
+				[5] = {offset = {y = 4}, paltbits = 0b1000001110000010},
+				[6] = {offset = {y = 4}, paltbits = 0b1000000110000010},
+				[7] = {offset = {y = 3}, paltbits = 0b1000000010000010},
+				[8] = {offset = {y = 2}, paltbits = 0b1000000000000010},
+				[9] = {
+					offset = {y = 1},
+					paltbits = 0b1000000000000010,
+					palette = {7,7,7,7,7,7,7,7},
+					altdelay = true
+				},
+				[10] = {visible = false},
+				[11] = {
+					offset = {y = 1},
+					paltbits = 0b1000000000000010,
+					palette = {14,14,14,14,14,14,14,14},
+					altdelay = true
+				},
+				[12] = {visible = false},
+				[13] = {
+					paltbits = 0b1000000000000010,
+					palette = {7,7,7,7,7,7,7,7},
+					altdelay = true
+				},
+			}, 5
+		},
+	},
+	w = 11,
+	h = 10,
+	airdragx = .95,
+	grounddragx = .6,
+	animkey = "spawn",
+	paused = true,
+	palette = {14, 14, 14, 14, 14, 14, 14, 14},
+	ispie = true,
+	flipoffset = -5,
+}
+
+-- rat_flash_palette 
+data_tables[36] = {[1] = 8, [13] = 8, [14] = 8}
+
+-- cone actor
+data_tables[37] = {
+	tablenames = "bodies,cones,skins",
+	anims = {
+		default = {1, 1, {19}},
+		hit = {1, 1, {3}},
+	},
+	offset = {x = -1, y = -2},
+	w = 5,
+	h = 6,
+	grounddragx = .90,
+	elasticity = .5,
+	maxvx = 2,
+	maxvy = 3,
+}
+
+-- slice actor
+data_tables[38] = {
+	tablenames = "slices,layer2,skins",
+	anims = {
+		default = {1, 1, {8, 8}, 30, true, {[2] = {offset = {y = -1}}}},
+		get = {1, 1, {8, 8, 8, 8, 8, 8}, 5, false,
+			{
+				[1] = {visible = false},
+				[2] = {offset = {y = -2}, palette = {[4]=14, [8]=14, [10]=14}},
+				[3] = {visible = false},
+				[4] = {offset = {y = -4}, palette = {[4]=7, [8]=7, [10]=7}},
+				[5] = {visible = false},
+				[6] = {offset = {y = -5}, palette = {[4]=14, [8]=14, [10]=14}},
+			}
+		},
+	},
+	offset = {x = 0, y = 0},
+	w = 5,
+	h = 6,
+}
+
+-- rat actor
+data_tables[39] = {
+	tablenames = "bodies,foods,grabbables,npcs,rats,skins,dskins",
+	anims = {
+		default = {1, 1, {36}, 0},
+		flash = {1, 1, {36, 36, 36, 36, 36}, 5, false, {
+			{visible = false},
+			{visible = true},
+			{visible = false},
+			{visible = true},
+			{visible = false},
+		}}
+	},
+	offset = {x = -1, y = -5},
+	flipoffset = -1,
+	tailoffset = {x = -2, y = 2},
+	palette = {[1] = 0},
+	blinkpal = {[1] = 13},
+	w = 5,
+	h = 3,
+	maxvx = 2,
+	maxvy = 2,
+	ac = 0.125,
+	grounddragx = .89,
+	tail = {
+		{x = 0, y = 255},
+		{x = 0, y = 255},
+		{x = 0, y = 255},
+		{x = 0, y = 255},
+	},
+
+	israt = true,
+}
+
+data_tables[40] = {
+	[-1] = "-",
+	[ 1] = "+",
+}
+
+-- credits
+data_tables[41] = {
+	{
+		"\^y7\feCREATED BY\f7\n" ..
+		"kittenm🐱ster\n" ..
+		"a.k.a. \"andrew anderson\"\n" ..
+		"\n" ..
+		"\feDESIGN HELP/ARBORICULTURE\f7\n" ..
+		"aubrianne anderson\n" ..
+		"\n" ..
+		"\fePLAYTESTING\f7\n" ..
+		"agatha\n" ..
+		"amos\n" ..
+		"aubrianne\n" ..
+		"denny\n" ..
+		"merl_\n" .. 
+		"mirko\n" .. 
+		"nqthqn\n" ..
+		"sarah",
+		16, 87, 0x27
+	},
+	{
+		"\^y7\feSPECIAL ASSISTANCE\f7\n" ..
+		"annie the dog",
+		16, 87 + (7 * 17), 0x27
+	},
+	{
+		"\^y7\feDISCLAIMER\f7\n" ..
+		"do not attempt the\n" ..
+		"preceding stunts\n" ..
+		"unless you are a\n" ..
+		"cool panda",
+		16, 87 + (7 * 20), 0x27
+	},
+	{
+		"cc4-by-nc-sa mmxxiii",
+		46, 322, 0x27
+	}
+}
+
+data_tables[42] = {
+	[-1] = {"⬅️", -11},
+	[1] = {"➡️", 29},
+}
+
+-- signstar actor
+data_tables[43] = {
+	tablenames = "skins,dskins,signstars",
+	anims = {
+		default = {
+			1, 1, {177}, 0
+		},
+		spawn = {
+			3,
+			2,
+			{
+				163, 163, 163, 163, 163, 163, 163
+			},
+			7,
+			false,
+			{
+				{
+					offset = {x = -5, y = -10},
+					paltbits = 0b1010000100000000,
+					palette = {7, 7}
+				},
+				{
+					offset = {x = -5, y = -10},
+					paltbits = 0b1110000000000000,
+					palette = {7, 7}
+				},
+				{
+					offset = {x = -5, y = -10},
+					paltbits = 0b1100000100000000,
+					palette = {7, 7}
+				},
+				{
+					offset = {x = -5, y = -10},
+					paltbits = 0b1110000100000000
+				},
+				{
+					offset = {x = -5, y = -9},
+					paltbits = 0b1110000100000000
+				},
+				{
+					offset = {x = -5, y = -5},
+					paltbits = 0b1110000100000000
+				},
+				{
+					offset = {x = -5, y = -6},
+					paltbits = 0b1110000100000000
+				},
+			}
+		}
+	},
+}
+
+-- portal box
+data_tables[44] = {
+	w = 20,
+	h = 13,
+	offset = {x = -11, y = -1},
+}
+
+-- title "PANDA" palettes
+data_tables[45] = {
+	-- logo palettes (two b&w PANDA states) after transformation
+	[1] = {[1] = 0, [3] = 2, [13] = 7},
+	[2] = {[1] = 7, [3] = 2, [13] = 0},
+
+	-- logo palette before transformation
+	[3] = {[1] = 7, [2] = 8, [3] = 8, [6] = 7, [13] = 7},
+}
+
+-- env_exec: draw logo
+data_tables[46] = {
+	{"sspr", 0, 64, 128, 11, 0, 57},
+	{"pal"},
+	{"draw_floating_pizza", 1},
+	{"clip"},
+}
+
+-- env_overlay: special actions for each trophy type (key is wintype)
+data_tables[47] = {
+	[1] = { -- silver
+		panda = {
+			x = 41, -- 2nd place position
+			y = 3,
+		},
+		readysettxt = "congratulations!!",
+		secretmsg = {
+			"\#0" ..
+			"\^ya                           \n" ..
+			"\^g\^y7\|i\-i\^h" ..
+			"\f7let's try to get every \fa★\f7!" ..
+			"\^-#\f0\n" ..
+			"\^:0007020000000000",
+			11, 370, 0x27
+		},
+	},
+	[2] = { -- gold
+		layer1 = {
+			[1] = {
+				palette = {[6] = 9, [7] = 10} -- change trophy palette to gold
+			}
+		},
+		panda = {
+			x = 49, -- 1st place position
+			y = 0,
+		},
+		readysettxt = "you win!!!",
+		secretmsg = {
+			"\#0" ..
+			"\^ya                           \n" ..
+			"\^y7                           \n" ..
+			"\^g\^y7\|i\-i\^h" ..
+			"\f7i heard there's a tricker\n"..
+			"type of star at night..." ..
+			"\^-#\f0\n" ..
+			"\^:0007020000000000",
+			11, 363, 0x27
+		},
+	},
+	[3] = { -- nitemode
+		layer1 = {
+			[1] = {
+				palette = {[6] = 15} -- add a palette to trophy so we can change it
+			}
+		},
+		panda = {
+			x = 49, -- 1st place position
+			y = 0,
+			anims = {
+				dance = {
+					indexes = { -- upside-down breakdancing
+						160, 161, 161,
+						160, 161, 161,
+					}
+				}
+			}
+		},
+		readysettxt = "~holy crap u did it~",
+		secretmsg = {
+			"\#0" ..
+			"\^ya                            \n" ..
+			"\^y7                            \n" ..
+			"\^y7                            \n" ..
+			"\^g\^y7\|i\-i\^h" ..
+			"\f7i had a weird dream about a\n" ..
+			"traffic cone that flew up\n" ..
+			"to the clouds..." ..
+			"\^-#\f0\n" ..
+			"\^:0007020000000000",
+			11, 356, 0x27
+		},
+	}
+}
+
+-- env_exec for _init()
+data_tables[48] = {
+	{"decomp_spritesheet"},
+	{"poke", 0x5f5c, 255}, -- disable btnp repeat
+	{"poke", 0x5f56, 0x80}, -- use high user data for map
+
+	{'poke', 0x5f2e, 1}, -- debug: keep screen palette
+
+	{"env_set", {
+		-- begin constants that were part of minifier process but are put here for
+		-- the public source code release
+		credits_level = 21,
+		max_level = 26,
+		state_credits = -1,
+		state_lastpie = 10,
+		state_load = 3,
+		state_overworld = 2,
+		state_play = 9,
+		state_ready = 7,
+		state_score = 4,
+		state_score_wipe = 5,
+		state_set = 8,
+		state_start = 1,
+		state_title = 0,
+		state_wipe = 6,
+		x_check_count = 3,
+		-- end constants
+
+		coroutines = {},
+		leftpresses = 0,
+		level = 0,
+		starstat = {},
+		state = state_title,
+		overworldlvl = 0,
+		prompt2y = 80,
+		starcounty = -8,
+	}},
+
+	{"cartdata", "kittenm4ster_pizzapanda"},
+	{"read_cartdata"},
+}
+
+-- env_exec: end of start_overworld, and after intro (when right is pressed)
+data_tables[49] = {
+	{"menuitem", 1},
+	{"menuitem", 2},
+	{"menuitem", 3},
+	{"env_overlay", {
+		state = state_overworld,
+		showarrow = false,
+		promptflash = {
+			v = 1
+		},
+	}},
+}
+
+-- level state initialization values
+-- (create empty ECS tables, etc.)
+data_tables[50] = {
+	actors = {},
+	bghats = {},
+	bodies = {},
+	cones = {},
+	dskins = {},
+	easers = {},
+	eaters = {},
+	explosions = {},
+	facers = {},
+	foods = {},
+	freezeactors = {},
+	gators = {},
+	grabbables = {},
+	hats = {},
+	heads = {},
+	layer0 = {},
+	layer1 = {},
+	layer2 = {},
+	layer3 = {},
+	layer9 = {},
+	npcs = {},
+	ogphotos = {},
+	papas = {},
+	photos = {},
+	pies = {},
+	portals = {},
+	rats = {},
+	signs = {},
+	skins = {},
+	signstars = {},
+	slices = {},
+	smokes = {},
+	windowkids = {},
+	level_coroutines = {},
+	camx = 0,
+	camy = 0,
+	cam_minx = 0,
+	cam_miny = -32,
+	bg_sx = 0,
+	bg_sy = 8,
+	neoncliph = 0,
+	lvltime = 0,
+	slicecount = 0,
+	jumpbtnframes = 0,
+	freezeframes = 0,
+	readysetx = 192,
+	readysety = 60,
+	readysettxt = false,
+	showstarcount = false,
+	prompt1 = false,
+	prompt2 = false,
+}
+
+data_tables[51] = {
+	{"ease", 0, 28, "neoncliph", 17},
+	{"wait", 25},
+}
+
+-- little trophy actor
+local trophy = {
+	tablenames = "skins,layer1",
+	anims = {
+		default = {
+			1, 1, {176}, 0
+		}
+	}
+}
+
+-- peeking panda mouth actor
+mouth = {
+	tablenames = "skins,layer1",
+	anims = {
+		default = {
+			2, 1, {171}
+		},
+		talk = {
+			2, 1, {
+				187, 171, 187, 187, 171, 187, 171, 171, 187, 187, 171, 187, 171, 187,
+			},
+			7, true
+		}
+	},
+	paltbits = 0b1111111011111101,
+	visible = false,
+}
+
+-- env_exec: after init_level, do special stuff for state_credits
+data_tables[52] = {
+	{"env_overlay", {
+		camy = -40,
+		readysety = 19,
+		peeky = 400,
+		prompt2y = 110,
+		showstarcount = true,
+		car = {animkey = "intro"},
+		car = {
+			-- x = 75,
+			-- y = 14,
+			animkey = "intro",
+			subskins = {
+				[1] = {
+					anims = {
+						intro = {
+							frameprops = {
+								[1] = {
+									paltbits = 0b0100000000000100,
+								}
+							}
+						}
+					}
+				}
+			}
+		},
+
+		-- undo nitemode palette changes
+		data_table_4 = {
+			[5] = 5,
+			[12] = 12,
+		},
+	}},
+	{"decomp_spritesheet"}, -- undo nitemode BG stars
+	{"add_actor", trophy, 76, -48},
+	{"add_actor", mouth, 11, 391},
+	{"read_cartdata"}, -- refresh starcount
+}
+
+data_tables[53] = {
+	{"init_level", 0},
+	{"music", 0},
+	{"env_overlay", {
+		neoncliph = 28,
+		car = {animkey = "intro"},
+		cam_minx = 8,
+	}},
+}
+
+-- checkered background for draw_neon_bg
+data_tables[54] = {
+	{"map", 64, 36, 0, 49, 18, 1},
+	{"map", 64, 36, 0, 69, 18, 1},
+}
+
+-- smoke actor
+data_tables[55] = {
+	tablenames = "skins,smokes",
+	anims = {
+		default = {
+			1,
+			1,
+			{182, 183, 184, 185, 186},
+			5,
+		}
+	},
+	offset = {y = 4}
+}
+
+-- env_exec: start music after panda lands in car
+data_tables[56] = {
+	{"env_overlay", {
+		credits = {
+			{"press menu for options", -128, 348, 0x27}
+		},
+	}},
+	{"wait", 60},
+	{"resume_music"},
+	{"wait", 5 * 60},
+	{"env_overlay", {
+		credits = {
+			[1] = {[2] = 28} -- set x = 28
+		},
+	}},
+}
+
+data_tables[57] = {
+	{"camera", 0, 1},
+	{"draw_exclamation", "OPEN LATE!"},
+	{"camera"},
+}
+
+-- things that happen when rat respawns
+data_tables[58] = {
+	{"sfx", 50, -1, 0, 2},
+	{"wait", 12},
+}
+
+-- env_exec: hide prompt, close neoncliph at end of intro coroutine
+data_tables[59] = {
+	{"env_set", {
+		prompt1 = false,
+		prompt2 = false,
+		credits = {{"", 0, -100, 0x00}},
+	}},
+
+	{"ease", 28, 0, "neoncliph", 17},
+}
+
+-- env_overlay: end of intro
+data_tables[60] = {
+	showarrow = true,
+	state = state_start,
+	car = {
+		animkey = "land"
+	},
+}
+
+-- photo actor
+data_tables[61] = {
+	tablenames = "ogphotos,photos",
+	offset = {y = 0},
+	state = 1, -- 1 = default, 2 = completed
+	visible = true,
+}
+
+-- env_exec: disable music, indexed by button param from menuitem callback
+data_tables[62] = {
+	[0x70] = {
+		{"music", -1},
+		{"memset", 0x3100, 0b01000000, 0x0100}, -- set "mute" bit to 1
+		{"menuitem", 1},
+	}
+}
+
+-- env_exec: "!erase all data!", indexed by button param from menuitem callback
+data_tables[63] = {
+	[0x70] = {
+		{"memset", 0x5e00, 0, 256},
+		{"run"},
+	}
+}
+
+data_tables[64] = {
+	{"add_explosion", 81, 1},
+	{"env_overlay", {
+		panda = {
+			animkey = "dance"
+		},
+		explosions = {
+			[1] = {
+				anims = {
+					default = {
+						loop = true
+					}
+				}
+			}
+		}
+	}},
+	{"ease", 192, 64, "readysetx", 10},
+	{"wait", 120},
+	{"music", 6},
+}
+
+data_tables[65] = {
+	{"ease", 400, 383, "peeky", 49},
+	{"wait", 30},
+	{"env_overlay", {
+		layer1 = {
+			[2] = {
+				animkey = "talk",
+				visible = true,
+			}
+		}
+	}},
+}
+
+-- key: current state
+-- value: state to change to when calling do_wipe() 
+data_tables[66] = {
+	[state_title] = state_wipe,
+	[state_start] = state_wipe,
+	[state_overworld] = state_wipe,
+	[state_load] = state_wipe,
+	[state_score] = state_score_wipe,
+	[state_score_wipe] = state_score_wipe,
+	[state_wipe] = state_wipe,
+	[state_ready] = state_wipe,
+	[state_set] = state_wipe,
+	[state_play] = state_wipe,
+	[state_lastpie] = state_wipe,
+}
+
+data_tables[67] = {
+	{"sfx", 51},
+	{"env_overlay", {
+		-- make cones act like hats
+		data_table_37 = {
+			s = 19,
+			tablenames = "bodies,cones,hats,skins",
+			weareroffset = {x = 1, y = -5},
+		}
+	}},
+	{"start_level_wipe", 26},
+}
+
+data_tables[68] = {
+	{"sfx", 50, -1, 6, 1},
+}
+
+data_tables[69] = {
+	{"sfx", 51},
+	{"env_overlay", {
+		overworldlvl = 22,
+
+		-- make pie act like cone (for bonus levels)
+		data_table_35 = {
+			tablenames = "bodies,dskins,cones,foods,layer2,layer3,skins",
+			airdragx = 1,
+			grounddragx = .90,
+			elasticity = .5,
+			maxvx = 2,
+			maxvy = 3,
+		},
+	}},
+	{"go_to_overworld"},
+}
+
+-- env_exec: beginning of score()
+data_tables[70] = {
+	{"sfx", -1},
+	{"env_set", {
+		level_coroutines = {},
+		maxphotow = 48,
+		neoncliph = 0,
+		state = state_score,
+	}},
+}
+
+-- env_overlay: give panda special message when you've finished everything
+data_tables[71] = {
+	secretmsg = {
+		"\#0" ..
+		"\^ya                         \n" ..
+		"\^y7                         \n" ..
+		"\^g\^y7\|i\-i\^h" ..
+		"\f7destroy the fossil fuel\n"..
+		"industry!" ..
+		"\^-#\f0\n" ..
+		"\^:0007020000000000",
+		11, 363, 0x27
+	},
+}
+
+data_tables[72] = {
+	{"wait", 244},
+	{"env_overlay", {
+		layer1 = {
+			[2] = {
+				animkey = "default",
+			}
+		}
+	}},
+	{"wait", 30},
+	{"show_starcount"},
+	{"wait", 30},
+}
+
+-- env_overlay: beginning of prompt() coroutine
+data_tables[73] = {
+	bobframes = 0,
+	promptbob = 0,
+	promptsel = 2,
+	prompt2 = true,
+}
+
+-- env_exec: end of prompt() coroutine
+data_tables[74] = {
+	{"wait", 79},
+	{"env_overlay", {
+		prompt1 = false,
+		prompt2 = false,
+	}},
+}
+
+-- counter actor
+local counter = {
+	tablenames = "skins,layer9",
+	anims = {
+		default = {
+			2, 2, {194,194,194,194,194,194,194,194,194,194,194,194,194,194,194},
+			0, false,
+			{
+				[ 1] = {paltbits = 0b1111111110000010},
+
+				[ 2] = {paltbits = 0b1011111110000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[ 3] = {paltbits = 0b1011111110000010},
+
+				[ 4] = {paltbits = 0b1001111110000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[ 5] = {paltbits = 0b1001111110000010},
+
+				[ 6] = {paltbits = 0b1000111110000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[ 7] = {paltbits = 0b1000111110000010},
+
+				[ 8] = {paltbits = 0b1000011110000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[ 9] = {paltbits = 0b1000011110000010},
+
+				[10] = {paltbits = 0b1000001110000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[11] = {paltbits = 0b1000001110000010},
+
+				[12] = {paltbits = 0b1000000110000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[13] = {paltbits = 0b1000000110000010},
+
+				[14] = {paltbits = 0b1000000010000010,
+					palette = {14,14,14,14,14,14,14},
+					altdelay = true,
+				},
+				[15] = {paltbits = 0b1000000010000010},
+			}, 10
+		},
+	},
+	palette = {10, 10, 10, 10, 10, 10, 10, 10},
+	shadowpal = {2, 2, 2, 2, 2, 2, 2, 2},
+}
+data_tables[75] = {
+	{"add_actor", counter, 114, 2},
+}
+
+data_tables[76] = {
+	[23] = "bonus delivery 1",
+	[24] = "bonus delivery 2",
+	[25] = "bonus delivery 3",
+	[26] = "\*3\^:08081c1c003e0000", -- picture of cone
+}
+
+-- env_exec: "restart delivery", indexed by button param from menuitem callback
+data_tables[77] = {
+	[0x70] = {
+		{"sfx", -1},
+		{"restart_level"},
+	}
+}
+
+-- env_exec: part of new star anim
+data_tables[78] = {
+	{"wait", 20},
+	{"sfx", 50, -1, 8, 24},
+}
+
+-- env_exec: show_starcount
+data_tables[79] = {
+	{"env_set", {
+		showstarcount = true,
+	}},
+	{"ease", -8, 2, "starcounty", 10},
+}
+
+data_tables[80] = {
+	[0] = "",
+	[1] = " \f6★",
+	[2] = " \fa★",
+	[3] = " \ff★",
+}
+
+-- env_exec: "level select", indexed by button param from menuitem callback
+data_tables[81] = {
+	[0x70] = {
+		{"sfx", -1},
+		{"go_to_overworld"},
+	}
+}

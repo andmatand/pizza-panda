@@ -1,0 +1,92 @@
+function serialize_value(addr, v)
+	if type(v) == "number" then
+		if v & 0x00ff == v then
+			poke(addr, 0)
+			addr += 1
+			poke(addr, v)
+			return addr + 1
+		elseif v & 0xffff == v then
+			poke(addr, 1)
+			addr += 1
+			poke2(addr, v)
+			return addr + 2
+		else
+			poke(addr, 2)
+			addr += 1
+			poke4(addr, v)
+			return addr + 4
+		end
+	elseif type(v) == "boolean" and v == true then
+		poke(addr, 3)
+		return addr + 1
+	elseif type(v) == "boolean" and v == false then
+		poke(addr, 4)
+		return addr + 1
+	elseif type(v) == "string" then
+		poke(addr, 5)
+		addr += 1
+
+		local len = #v
+		assert(len <= 255, "string must be <= 255 chrs")
+		poke(addr, len)
+		addr += 1
+
+		for i = 1, len do
+			poke(addr, ord(v[i]))
+			addr += 1
+		end
+
+		return addr
+	elseif type(v) == "table" then
+		if is_empty(v) then
+			poke(addr, 6)
+			return addr + 1
+		elseif is_array(v) then
+			poke(addr, 7)
+			return serialize_table(addr + 1, v, true)
+		else
+			poke(addr, 8)
+			return serialize_table(addr + 1, v)
+		end
+	end
+end
+
+function count_props(t)
+	local propcount = 0
+
+	for k, v in pairs(t) do
+		propcount += 1
+	end
+
+	return propcount
+end
+
+function is_array(t)
+	return #t == count_props(t)
+end
+
+function is_empty(t)
+	for k, v in pairs(t) do
+		return false
+	end
+
+	return true
+end
+
+function serialize_table(addr, t, isarray)
+	poke(addr, count_props(t))
+	addr += 1
+
+	if isarray then
+		for v in all(t) do
+			addr = serialize_value(addr, v)
+		end
+	else
+		for k, v in pairs(t) do
+			addr = serialize_value(addr, k)
+			addr = serialize_value(addr, v)
+		end
+	end
+
+	return addr
+end

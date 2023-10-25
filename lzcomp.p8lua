@@ -1,0 +1,139 @@
+function build_cache(addr, len)
+	local cache = {}
+	local maxaddr = addr + len - 1
+
+	for a = addr, maxaddr - 4 do
+		local k = $a
+
+		local addrs = cache[k]
+		if addrs then
+			add(addrs, a)
+		else
+			cache[k] = {a}
+		end
+	end
+
+	return cache
+end
+
+function match(addr1, addr2, len)
+	-- skip the first 4 bytes since we are coming here from cache lookup
+	addr1 += 4
+	addr2 += 4
+	len -= 4
+
+	while len >= 4 do
+		if $addr1 ~= $addr2 then
+			return false
+		end
+		addr1 += 4
+		addr2 += 4
+		len -= 4
+	end
+
+	for i = 0, len - 1 do
+		if @(addr1 + i) ~= @(addr2 + i) then
+			return false
+		end
+	end
+
+	return true
+end
+
+function find_match(minaddr, addr, maxaddr, cache, maxlen)
+	if addr <= minaddr then
+		return false
+	end
+
+	for len = maxlen, 4, -1 do
+		local maxmatchaddr = min(addr - 1, maxaddr - len)
+		local addrs = cache[$addr]
+		if addrs then
+			for a in all(addrs) do
+				if a >= minaddr and a <= maxmatchaddr and match(a, addr, len) then
+					return {
+						addr = a,
+						len = len,
+					}
+				end
+			end
+		end
+	end
+end
+
+function lz_comp(dst, src, len, maxlenoverride)
+	local maxlen = maxlenoverride or 254 
+	local cache = build_cache(src, len)
+	local bestlen = 0
+
+	local ogsrc, ogdst = src, dst
+	dst += 2 -- make room for header
+	while src < ogsrc + len do
+		if @src == 255 then
+			poke(dst, 255, 0, 0)
+			dst += 3
+			src += 1
+		else
+			local minaddr = ogsrc
+			if src - ogsrc > 254 then
+				minaddr += ((src - ogsrc) - 254)
+			end
+			local match = find_match(minaddr, src, ogsrc + len - 1, cache, maxlen)
+			if match then
+				assert(src - match.addr > 0, "jump too small")
+				assert(src - match.addr <= 254, "jump too big")
+				assert(match.len > 0, "match len too small")
+				assert(match.len <= 254, "match len too big")
+
+				poke(dst, 255, src - match.addr, match.len)
+				dst += 3
+				src += match.len
+
+				bestlen = max(bestlen, match.len)
+			else
+				poke(dst, @src)
+				dst += 1
+				src += 1
+			end
+		end
+	end
+
+	-- write header at beginning
+	local len2 = dst - (ogdst + 2)
+	poke2(ogdst, len2)
+
+	return len2 + 2 -- add header length
+end
+
+function comp_level(dst, mx, my, mw, mh)
+	local a = dst
+	poke(a, mw, mh)
+	a += 2
+
+	local slicecount = 0
+
+	for y = my, my + mh - 1 do
+		for x = mx, mx + mw - 1 do
+			local v = mget(x, y)
+			assert(v ~= 255, "input data used special byte 255!")
+			poke(a, v)
+			a += 1
+
+			if y > my and v == 8 then
+				slicecount += 1
+			end
+		end
+	end
+	assert(a - dst == (mw * mh) + 2)
+
+	if mw <= 16 then
+		assert(slicecount % 8 == 0, slicecount .. " slices (not a multiple of 8)")
+	end
+
+	local maxsearchlen = 48--mw*mh > 1000 and 96 or 48
+	local len = lz_comp(0xc000, dst, a - dst, maxsearchlen)
+	-- copy back to original dst
+	memcpy(dst, 0xc000, len)
+
+	return len
+end

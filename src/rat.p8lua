@@ -1,0 +1,83 @@
+function add_rat(x, y, x2)
+	local a = add_actor(data_table_39, x, y + 5)
+
+	a.x1, a.x2, a.cr = x, x2, cocreate(function() run_rat_ai(a) end)
+end
+
+function run_rat_ai(a)
+	while state >= state_load and state <= state_set do
+		yield()
+	end
+
+	local _ENV, yield = a, yield
+
+	repeat
+		if owner then
+			dirx = owner.dirx
+		elseif not paused then
+			for i = 1, 16 do
+				if x <= x1 + 7 then
+					dirx = 1
+				elseif x >= x2 - 2 then
+					dirx = -1
+				end
+
+				vx += ac * dirx
+
+				yield()
+			end
+			for i = 1, 90 do
+				if owner then
+					break
+				end
+				yield()
+			end
+		end
+		yield()
+	until sempre
+end
+
+function update_tail(a)
+	local _ENV, _g = a, _ENV
+
+	if paused then
+		return
+	end
+
+	local tx, ty = _g.add_coords(_g.xyt(dx, dy), tailoffset)
+	if dirx == -1 then
+		tx += 8
+	end
+
+	tail[1].x, tail[1].y = tx, ty
+
+	for i = 1, #tail - 1 do
+		local t = tail[i]
+		t.y += 0.09
+		_g.drag(t, tail[i + 1], dirx, i)
+	end
+end
+
+function drag(a, b, dirx, i)
+  local dx, dy = a.x - b.x, a.y - b.y
+	local angle = atan2(dx, dy)
+
+	if angle < .5 then
+		local vy = .70 - (i * .08)
+		angle += vy * -sgn(dirx)
+		angle = mid(0, angle, 0.5)
+	end
+
+  b.x, b.y = a.x - cos(angle), a.y - sin(angle)
+end
+
+function draw_rat(a)
+	draw_skin(a)
+	if a.anim:get_frame_props().visible ~= false then
+		pal(a.palette)
+		for n in all(a.tail) do
+			pset(n.x, n.y, 14)
+		end
+		pal()
+	end
+end

@@ -1,0 +1,55 @@
+function choose_animkey(a)
+	local _g, _ENV = _ENV, a
+
+	if vy < 0 then
+		return "jump"
+	end
+
+	if animkey == "default" or animkey == "walk" then
+		if vy > 0 then
+			return "fall"
+		elseif _g.abs(vx) > 0 then
+			return "walk"
+		else
+			return "default"
+		end
+	elseif animkey == "jump" or animkey == "fall" then
+		if support then
+			return "land" 
+		end
+	elseif animkey == "land" then
+		if animkey == "land" and anims.land:is_done() then
+			return "default"
+		end
+	end
+
+	return animkey
+end
+
+function update_player(a)
+	a.animkey = choose_animkey(a)
+
+	for s in all(slices) do
+		if not s.got then
+			for b in all(a.itemgetterboxes) do
+				local box = get_box(a, b)
+				if overlap(box, s) then
+					sfx(61, -1, slicecount * 4, 4)
+					get_slice(s)
+					slicecount += 1
+					counter.anims.default.i = slicecount * 2
+					if slicecount == 8 then
+						slicecount = 0
+
+						counter.anims.default.i = 1
+						add_pie(s.x - 3, s.y - 8)
+						del_actor(s)
+
+						sfx(62)
+					end
+					break
+				end
+			end
+		end
+	end
+end

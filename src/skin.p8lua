@@ -1,0 +1,120 @@
+function set_anim(a, k)
+	if not a.anims[k] or a.anim == a.anims[k] then
+		return
+	end
+
+	local oldanim = a.anim
+	a.anim = a.anims[k]
+	a.anim:reset()
+
+	if oldanim and a.anim.frameprops.sync and oldanim.frameprops.sync then
+		a.anim:sync_with(oldanim)
+	end
+
+	for skin in all(a.subskins) do
+		skin.anim = skin.anims[k]
+		skin.anim:sync_with(a.anim)
+	end
+
+	return true
+end
+
+function update_skin(a)
+	local skip = set_anim(a, a.animkey)
+
+	if not skip then
+		a.anim:update()
+	end
+
+	for skin in all(a.subskins) do
+		if not skip then
+			skin.anim:update()
+		end
+		skin.dirx = a.dirx
+	end
+
+	if a.blinkpal then
+		a.blinkframes -= 1
+
+		if a.blinkframes < 0 then
+			a.blinkframes = rnd_int(30, 600)
+		end
+	end
+
+	if a.photo and a.photo.state == 1 then
+		_, a.photo.offset.y = add_coords(a.anim:get_frame_props().offset)
+	end
+end
+
+function draw_skin(a)
+	if a.visible == false then
+		return
+	end
+
+	if a.clips then
+		for c in all(a.clips) do
+			clip(c.x - camx, c.y - camy, c.w, c.h)
+			draw_anim(a, a.anim)
+		end
+		clip()
+	else
+		draw_anim(a, a.anim)
+	end
+
+	for skin in all(a.subskins) do
+		skin.dx, skin.dy = a.dx, a.dy
+		draw_skin(skin)
+	end
+end
+
+function draw_anim(a, anim, overridepalette)
+	local props = anim:get_frame_props()
+	if props.visible == false then
+		return
+	end
+
+	local x, y = get_draw_offset(a, anim)
+	local w, h = props.w or anim.w, props.h or anim.h
+
+	if props.flipx and props.w then
+		x += (anim.w - props.w) * 8
+	end
+
+	local flipx = (a.dirx == -1)
+
+	if props.flipx then
+		flipx = not flipx
+	end
+	if flipx then
+		x += a.flipoffset
+	end
+
+	pal(merge_shallow(a.palette, props.palette, overridepalette))
+	if a.blinkpal and a.blinkframes <= 5 then
+		pal(a.blinkpal)
+	end
+
+	palt(props.paltbits or a.paltbits or 0x8000)
+
+	spr(anim:get_index(), x, y, w, h, flipx)
+	palt()
+	pal()
+end
+
+function get_draw_offset(a, anim)
+	local pos = {
+		x = a.dx or a.x,
+		y = a.dy or a.y,
+	}
+	return add_coords(pos, a.offset, anim:get_frame_props().offset)
+end
+
+function update_autodefault_skin(a)
+	if a.anim and a.anim:is_done() then
+		a.animkey = "default"
+	end
+end
+
+function wait_for_anim(a)
+	repeat yield() until a.anim:is_done()
+end

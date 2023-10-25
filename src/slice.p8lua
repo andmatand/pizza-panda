@@ -1,0 +1,13 @@
+function add_slice(x, y)
+	add_actor(data_table_38, x + 1, y)
+end
+
+function get_slice(a)
+	a.got, a.animkey = true, "get"
+end
+
+function update_slice(a)
+	if a.got and a.anim:is_done() then
+		del_actor(a)
+	end
+end

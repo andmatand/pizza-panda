@@ -1,0 +1,10 @@
+max_level = 26
+master_cart = "pizza_panda.p8"
+compressed_datatable_count = 8
+
+function pad0(s)
+	if s < 10 then
+		return "0" .. tostr(s)
+	end
+	return tostr(s)
+end

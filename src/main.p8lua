@@ -1,0 +1,1119 @@
+function toc_lookup(i)
+	return 0xa000 + peek2(0xa002 + (i*2))
+end
+
+function env_overlay(t)
+	overlay(_ENV, t)
+end
+
+function env_set(t)
+	overlay(_ENV, deep_copy(t), true)
+end
+
+function env_exec(t)
+	local r
+
+	for v in all(t) do
+		r = _ENV[v[1]](select(2, unpack(v)))
+	end
+
+	return r
+end
+
+function env_exec_cr(dt)
+	cr(function() env_exec(dt) end)
+end
+
+function _init()
+	-- copy compressed filesystem to high user data
+	memcpy(0xa000, 0x0, 0x3000)
+
+	-- decompress the last "file" which contains the first few datatables
+	lastfileaddr = toc_lookup(28)
+	addr = lz_decomp(lastfileaddr, lastfileaddr - 0xa000)
+
+	-- copy the remaining datatables into the memory following the first few
+	for i = 1, #bindatatables do
+		poke(addr + i - 1, ord(bindatatables, i))
+	end
+
+	-- deserialize all binary data tables
+	addr = lastfileaddr
+	for i = 1, 81 do
+		_ENV["data_table_" .. i], addr = deserialize_table(addr)
+	end
+
+	-- do various pokes etc.
+	env_exec(data_table_48)
+
+	-- decompress level 0 so background buildings, clouds, etc are to the right
+	decomp_level(0, 0, toc_lookup(1))
+
+	promptflash = new_timer(79)
+
+	menuitem(1, "♪ disable music", function(b)
+		env_exec(data_table_62[b])
+	end)
+	menuitem(3, "!erase all data!", function(b)
+		env_exec(data_table_63[b])
+	end)
+
+	-- debug
+	if stat(6) ~= "" then
+		local editorcmd = split(stat(6))
+		wipescale = env_exec({editorcmd})
+		return
+	end
+
+	cr(function()
+		repeat
+			if btnp(0) then
+				leftpresses += 1
+
+				if leftpresses == 47 then
+					data_table_3[1][2] = data_table_18[1][2]
+					go_to_overworld()
+				end
+			end
+
+			yield()
+		until state == state_overworld
+
+		-- close neoncliph
+		env_exec(data_table_59)
+	end)
+
+	env_exec(data_table_53)
+	panda = env_exec(data_table_18)
+	player = panda
+
+	-- intro
+	cr(function()
+		wait(64)
+		for i = 1, 120 do
+			panda.vx += .13
+			yield()
+		end
+
+		jump(panda, 2.6)
+		panda.vx += .20
+
+		-- play jump sfx, wait
+		env_exec(data_table_13)
+
+		leave_tables(panda, layer1)
+		join_table(panda, gators) -- put panda in gators to draw before car
+
+		wait(26)
+
+		-- wait, resume music
+		env_exec_cr(data_table_56)
+
+		del_actor(panda)
+		player = car
+
+		-- show arrow, set car animkey to "land", set state to state_start
+		env_overlay(data_table_60)
+
+		if wintype >= 2 then
+			prompt("nite mode", function()
+				env_exec(data_table_19)
+			end)
+		end
+
+		repeat yield() until btn(1)
+		del(coroutines, prompt_cr)
+
+		-- remove menuitem 1 ("!erase all data!"), set state to state_overworld,
+		-- set showarrow to false
+		env_exec(data_table_49)
+	end)
+end
+
+function init_level(n)
+	level = n
+	env_set(data_table_50)
+
+	-- read/decompress level data and write into map
+	map_w, map_h = decomp_level(0, 0, toc_lookup(level + 1))
+
+	-- override any special values for this level
+	env_overlay(data_table_11[level] or {})
+
+	if level == 0 then
+		level_cr(function()
+			while state <= state_start do yield() end
+			repeat
+				local minx = min(136, camx)
+				cam_minx = minx
+				for a in all(bodies) do
+					a.minx = minx
+				end
+				yield()
+			until minx == 136
+		end)
+
+		level_cr(function()
+			repeat yield() until player.x > 121
+			show_starcount()
+		end)
+
+		if state > state_title then
+			camx = 136
+		end
+	end
+
+	mapw_px, maph_px = map_w * 8, map_h * 8
+	cam_maxx, cam_maxy = mapw_px - 128, maph_px - 130
+
+	car, counter = env_exec(data_table_3), env_exec(data_table_75)
+	player = car
+
+	parse_map()
+end
+
+function do_wipe(callback)
+	state = data_table_66[state]
+
+	coroutines = {}
+	cr(function()
+		wipe(callback)
+	end)
+end
+
+function wipe(callback)
+	menuitem(1)
+
+	wipescale = state == state_score_wipe and 1 or 0.2
+	repeat
+		wipescale *= 1.11
+		yield()
+	until wipescale > 160
+
+	callback()
+
+	wipescale = 75
+	for i = 1, 50 do
+		wipescale *= .825
+		yield()
+	end
+	wipescale = nil
+end
+
+function start_level_wipe(l)
+	do_wipe(function() start_level(l) end)
+end
+
+function start_level(level, quick)
+	state, focus = state_load
+
+	init_level(level)
+
+	if level == credits_level then
+		state, credits, panda = state_credits, data_table_41, env_exec(data_table_18)
+		leave_tables(panda, layer1, bodies)
+		join_table(panda, layer0)
+
+		env_exec(data_table_52)
+		env_overlay(data_table_47[max(1, wintype)])
+
+		-- if user has already seen other credits messages and has played first
+		-- bonus level
+		if wintype == 3 and dget(23) > 0 then
+			-- modify panda message
+			env_overlay(data_table_71)
+		end
+
+		for a in all(heads) do
+			a.target = panda
+		end
+
+		-- ease trophy down
+		env_exec_cr(data_table_22)
+
+		cr(function()
+			wait(30)
+			music(5)
+			repeat
+				yield()
+				layer1[1].y = trophyy
+			until trophyy == -3
+			
+			-- wait(120), music(6), dance
+			env_exec(data_table_64)
+
+			while camy < 278 do
+				camy += 1
+				starcounty -= 1
+				readysety -= 1
+
+				wait(8)
+			end
+
+			-- show panda, wait, set panda anim to "talk"
+			env_exec(data_table_65)
+			pandaspeech = secretmsg
+
+			-- wait, set panda anim to "default", show_starcount
+			env_exec(data_table_72)
+
+			prompt("continue?", function()
+				wait(30)
+				run()
+			end)
+		end)
+
+		return
+	end
+
+	switch_timer_mode(0) -- add "timer" menuitem
+
+	deliveryname =
+		(data_table_76[level] or ("delivery " .. level)) ..
+		(nitemode and ": nite" or "")
+
+	cr(function()
+		state, readysettxt =
+			state_ready,
+			deliveryname .. data_table_80[starstat[level]]
+
+		if not quick then
+			wait(28)
+		end
+
+		-- ease readysetx, etc.
+		env_exec(data_table_8)
+
+		cr(function()
+			repeat
+				-- distribute the photos on the x axis
+				for i, p in pairs(photos) do
+					p.x = approach(
+						2 + (i - 1) * min(maxphotow / #photos, 12),
+						p.x,
+						.3
+					)
+				end
+
+				yield()
+			until sempre
+		end)
+
+		repeat yield() until btn() & 0b00010011 ~= 0
+		state, showarrow = state_play
+		menuitem(1, "restart delivery", function(b)
+			env_exec(data_table_77[b])
+		end)
+
+		env_exec(data_table_26)
+	end)
+
+	menuitem(2, "⌂ level select", function(b)
+		env_exec(data_table_81[b])
+	end)
+end
+
+function show_starcount()
+	env_exec(data_table_79)
+end
+
+function start_overworld()
+	state, oldlevel = state_overworld, level
+	init_level(overworldlvl)
+
+	for p in all(portals) do
+		if p.level == oldlevel then
+			player.x, player.y, player.dirx = p.x + 9, p.y + 6, -1
+
+			if not find_map_platform(player, player.x, player.y) then
+				player.x, player.dirx = p.x - 27, 1
+			end
+		end
+	end
+
+	env_exec(data_table_49)
+	resume_music()
+end
+
+function go_to_overworld(b)
+	if b == 0x70 or not b then
+		menuitem(2)
+		do_wipe(start_overworld)
+	end
+end
+
+function restart_level(b)
+	if b == 0x70 or not b then
+		coroutines, wipescale = {}
+		start_level(level, true)
+	end
+end
+
+function _update60()
+	update_coroutines(coroutines)
+	update_coroutines(level_coroutines)
+
+	nitecol = data_table_34[flr((t()*12)) % 4]
+	starcountcol = nitemode and nitecol or 10
+	foreach(signstars, update_signstar)
+	if state == state_credits and wintype == 3 then
+		layer1[1].palette[6] = nitecol -- change trophy color
+	end
+
+	if stat(54) >= 15 then
+		prevmusic = stat(54)
+	end
+
+	if state == state_score or state == state_score_wipe or
+	   state == state_wipe then
+		return
+	elseif state == state_overworld then
+		focus = nil
+		for p in all(portals) do
+			if overlap(player, get_box(p, data_table_44)) then
+				focus = p
+			end
+		end
+
+		if focus and not focus.locked and btnp(5) then
+			promptflash:reset()
+			sfx(57)
+			if focus.level == credits_level then
+				music(-1, 500)
+			end
+			start_level_wipe(focus.level)
+			return
+		end
+	end
+
+	if btnp(4) then
+		jumpbtnframes = 6
+	end
+	if (state >= state_ready or state == state_overworld) and btnp(5) then
+		sfx(55, 3) -- honk horn
+	end
+	if stat(49) == 55 and not btn(5) then
+		-- stop horn
+		sfx(-2, 3)
+	end
+
+	if freezeframes > 0 then
+		freezeframes -= 1
+		foreach(freezeactors, update_cutscene_actor)
+		foreach(easers, update_easer)
+		foreach(explosions, update_skin)
+		return
+	else
+		freezeactors = {}
+	end
+
+	for a in all(actors) do
+		update_coroutines{a.cr}
+	end
+
+	foreach(bodies, save_old_props)
+
+	if state == state_play and lvltime < 18000 then
+		lvltime += 1
+	end
+
+	if state >= state_set or state == state_overworld then
+		control_actor(player)
+	end
+	jumpbtnframes -= 1
+
+	foreach(dskins, update_autodefault_skin)
+	foreach(smokes, function(a)
+		if a.anim:is_done() then
+			del_actor(a)
+		end
+	end)
+	foreach(slices, update_slice)
+	foreach(cones, update_cone)
+
+	foreach(gators, update_gator)
+
+	foreach(bodies, update_body)
+	update_grabber(player)
+	update_player(player)
+
+	foreach(pies, update_pie)
+	foreach(papas, update_papa)
+	foreach(heads, update_head)
+	foreach(eaters, update_eater)
+
+	foreach(skins, update_skin)
+	foreach(facers, update_facer)
+
+	foreach(skins, update_draw_pos)
+	update_grabber_stack(player)
+	foreach(easers, update_easer)
+	foreach(hats, update_hat)
+	foreach(rats, update_tail)
+
+	if state ~= state_credits then
+		update_camera()
+	end
+
+	if state == state_play and donepies == goalpies and donerats == goalrats then
+		state = state_lastpie
+	end
+
+	if state == state_lastpie then
+		local ok = true
+		for a in all(heads) do
+			if a.state ~= 1 then
+				ok = false
+				break
+			end
+		end
+
+		if ok then
+			score()
+		end
+	end
+end
+
+function score()
+	env_exec(data_table_70)
+	timebadge, photos = lvltime <= targettime, ogphotos
+
+	local startype = 1
+	if timebadge then
+		startype = nitemode and 3 or 2
+		music(10)
+	else
+		sfx(51)
+	end
+
+	if startype > starstat[level] then
+		dset(level, startype)
+		read_cartdata()
+		newstarlevel = level
+	end
+
+	for p in all(photos) do
+		overlay(p, {
+			x = -128,
+			y = 56,
+			offset = xyt(28 - (#photos * 12) / 2, 0)
+		})
+	end
+
+	-- ease wipescale
+	env_exec_cr(data_table_17)
+
+	cr(function()
+		-- ease neoncliph, wait
+		env_exec(data_table_51)
+
+		prompt(
+			"continue", go_to_overworld,
+			"restart", restart_level
+		)
+	end)
+end
+
+function register_easer(a, dst)
+	add(easers, a)
+
+	a.easepos = {
+		x = 0,
+		y = 0,
+		dx = a.x - dst.x,
+		dy = a.y - dst.y,
+	}
+
+	a.x, a.y, a.easespd, a.iseasing, a.easepos._dx, a.easepos._dy =
+		dst.x, dst.y, .33, true, a.easepos.dx, a.easepos.dy
+end
+
+function update_easer(a)
+	ease_draw_pos(a.easepos, a.easespd)
+	a.dx, a.dy = a.x + a.easepos.dx, a.y + a.easepos.dy
+
+	if is_done_easing(a.easepos) then
+		del(easers, a)
+		a.iseasing = nil
+	end
+end
+
+function control_actor(a)
+	local d, smokex = a.ac
+	if not a.support then
+		d *= .5
+	end
+
+	if btn(0) then
+		local d2 = d
+		if a.vx > 0 and a.support then
+			d2 = d * 1.75
+			if a.vx > 1.0 then
+				smokex = 16
+			end
+		end
+
+		a.vx -= d2
+		a.dirx = -1
+	elseif btn(1) then
+		local d2 = d
+		if a.vx < 0 and a.support then
+			d2 = d * 1.75
+			if a.vx < -1.0 then
+				smokex = -8
+			end
+		end
+
+		a.vx += d2
+		a.dirx = 1
+	end
+
+	if a.dirx != a.old.dirx and smokex and #smokes == 0 then
+		local smoke = add_actor(
+			data_table_55,
+			player.x + smokex,
+			player.y
+		)
+		smoke.dirx = sgn(-smokex)
+	end
+
+	if jumpbtnframes > 0 and (a.support or a.old.support) then
+		sfx(63)
+		jumpbtnframes = 0
+		jump(a, 2.6)
+	end
+	if not btn(4) and not a.isboinging then
+		a.vy = max(a.vy, -1)
+	end
+end
+
+function _draw()
+	-----------------------------------------------------------------------------
+	-- [start of draw_game]
+	-----------------------------------------------------------------------------
+	cls(12)
+
+	-- draw clouds (stars in nitemode)
+	camera(camx * .125, camy * .125)
+	map(82, 0, 0, bg_sy, 29, 16)
+
+	-- draw bg buildings
+	camera(camx * .25, camy * .25)
+	map(82, 15, bg_sx, bg_sy, 48, 22)
+
+	camera(camx, camy)
+
+	map(0, 0, 0, 0, map_w, map_h, 0x01)
+
+	if state == state_credits then
+		-- draw peeking panda
+		pal(12, 0) -- keep palette for paws (drawn with roads)
+		spr(173, 3, peeky, 3, 2)
+		print(unpack(pandaspeech or {}))
+	end
+
+	map(0, 0, 0, 0, map_w, map_h, 0x04) -- buildings
+	map(0, 0, 0, -1, map_w, map_h, 0x20) -- 1px up: roads, signs, doors, trees
+
+	foreach(signs, draw_sign)
+	foreach(signstars, draw_skin)
+
+	foreach(heads, draw_skin)
+	foreach(bghats, draw_skin)
+	foreach(gators, draw_skin)
+
+	foreach(smokes, draw_skin)
+	foreach(layer0, draw_skin) -- player
+
+	draw_speed_lines(player)
+	foreach(explosions, draw_skin)
+	foreach(eaters, draw_eater) -- food being eaten
+
+	foreach(rats, draw_rat)
+	foreach(cones, draw_skin)
+	foreach(heads, draw_emote)
+	foreach(layer1, draw_skin) -- grabbed items (pies, rats, hats)
+	foreach(layer2, draw_skin) -- grabbables (pies) and slices
+	foreach(layer3, draw_skin) -- spawning pies
+
+	if focus and promptflash.v % 8 < 4 then
+		shadowprint(
+			focus.locked and "\-c\|e\^:38444444feeeeefe" or "\f2◆\^g\f7❎ go!",
+			focus.x,
+			focus.y - 10 + flr(t() * 2 % 2),
+			0x27,
+			true
+		)
+	end
+
+	if showarrow then
+		local arrow, ox = unpack(data_table_42[player.dirx])
+		shadowprint(
+			"\f2◆\^g\f7" .. arrow,
+			player.x + ox + sin(t()) / 2,
+			player.y + 1,
+			0x27,
+			true
+		)
+	end
+
+	-----------------------------------------------------------------------------
+	-- [end draw_game]
+	-----------------------------------------------------------------------------
+
+	foreach(credits, function(c)
+		shadowprint(unpack(c))
+	end)
+
+	camera()
+
+	if state >= state_title and state <= state_overworld then
+		if state > state_title then
+			clip(draw_neon_bg())
+
+			palt(0b1010001010000000)
+			pal(data_table_45[(flr(t() * 1.674) % 2) + 1])
+		else
+			pal(data_table_45[3])
+		end
+
+		-- draw logo, draw_floating_pizza, clip
+		env_exec(data_table_46)
+
+		if state == state_start and nitemode then
+			-- draw "open late!"
+			env_exec(data_table_57)
+		end
+	end
+
+	if showstarcount then
+		shadowprint(
+			"★ \f7" .. starcount .. "/" .. max_level - 6,
+			2,
+			starcounty,
+			starcountcol | 0x20
+		)
+	end
+
+	if state == state_score or state == state_score_wipe then
+		shadowprint(
+			deliveryname .. " complete",
+			192 - (neoncliph / 28) * 128,
+			41,
+			0x27,
+			true
+		)
+
+		clip(draw_neon_bg())
+
+		-- time
+		local diff = lvltime - targettime
+		if flr(t()) % 2 == 0 then
+			shadowprint(
+				"★" .. format_time(diff, true),
+				80,
+				60,
+				timebadge and 0xb7 or 0x87
+			)
+		else
+			shadowprint("⧗ " .. format_time(lvltime), 80, 60, 0x27)
+		end
+
+		local msg = "PIZZA!"
+		if timebadge then
+			msg = nitemode and "~DELICIOUS~" or "★ GREAT!!"
+		elseif diff < 60 then
+			msg =     "SO CLOSE!!"
+		elseif diff < 600 then
+			msg =     "NOT BAD!"
+		end
+		draw_exclamation(msg)
+
+		clip()
+
+		color(7)
+	end
+
+	foreach(photos, draw_photo)
+
+	if state >= state_set then
+		camera(-1, -1)
+		draw_anim(counter, counter.anim, counter.shadowpal)
+		camera()
+		foreach(layer9, draw_skin) -- counter
+
+		if (timermode == 2 and furthestlevel >= level) or timermode == 3 then
+			shadowprint(
+				format_time(lvltime - targettime, true),
+				64,
+				2,
+				lvltime <= targettime and 0x27 or 0x87,
+				true
+			)
+		end
+	end
+
+	if readysettxt then
+		draw_slant_text(readysettxt, readysetx, readysety)
+	end
+
+	if promptflash.v % 8 < 4 then
+		if prompt1 then
+			draw_prompt(prompt1txt, 27, 80, promptsel == 1)
+		end
+		if prompt2 then
+			draw_prompt(prompt2txt, 100, prompt2y, promptsel == 2)
+		end
+	end
+
+	if wipescale then
+		draw_floating_pizza(wipescale)
+	end
+
+	promptflash:update()
+	pal(data_table_4, 1)
+end
+
+function draw_photo(p)
+	if p.visible then
+		local x, y = add_coords(p, p.offset)
+		local h = p.h
+		local ax, ay = x + 1, y + (h ~= 0 and 4 or 3)
+
+		-- draw photo background
+		spr(4, x, y, 2, 2)
+
+		local oldclip = pack(clip(x + 1, y + 1, 8, 10))
+		pal(data_table_1)
+
+		-- draw head
+		spr(p.s, ax, ay)
+
+		-- draw hat
+		if h ~= 0 then
+			local props = data_table_28[h]
+			local hx, hy = add_coords(xyt(ax, ay), props.offset, props.weareroffset)
+			spr(h, hx, hy)
+		end
+
+		pal()
+		clip(unpack(oldclip))
+	end
+end
+
+function draw_speed_lines(a)
+	local len = 5 * ((abs(a.vx) - 1.6) / 0.4) -- 0.4 = 2 - 1.6 (maxvx - minvx)
+
+	if sgn(a.dirx) == sgn(a.vx) and len > 1 then
+		for i, offsets in pairs(data_table_5[a.dirx]) do
+			local ox, oy = unpack(offsets)
+			line(
+				a.x + ox,
+				a.y + oy,
+				a.x + ox + len*-a.dirx,
+				a.y + oy,
+				starcountcol
+			)
+		end
+	end
+end
+
+function overlap(a, b)
+	return a.x + a.w > b.x and
+	       a.x < b.x + b.w and
+				 a.y + a.h > b.y and
+				 a.y < b.y + b.h
+end
+
+function face(a, b)
+	a.dirx = sgn(get_center(b) - get_center(a))
+end
+
+function update_facer(a)
+	if rnd() < .15 then
+		face(a, a.target)
+	end
+end
+
+function save_old_props(a)
+	a.old = nil
+	a.old = merge_shallow(a)
+end
+
+function update_draw_pos(a)
+	set_draw_pos(a, flr(a.x), flr(a.y))
+end
+
+function set_draw_pos(a, dx, dy)
+	if not a.iseasing then
+		a.dx, a.dy = dx, dy
+	end
+end
+
+function get_box(a, b)
+	if not b then
+		return a
+	end
+
+	local box = merge_shallow(b)
+	box.x, box.y = add_coords(a, b.offset)
+
+	if a.dirx == -1 and b.flipoffset then
+		box.x += b.flipoffset
+	end
+
+	if a.old then
+		box.old = get_box(a.old, b)
+	end
+
+	return box
+end
+
+function center_x_in_box(a, box)
+	return box.x + (box.w / 2) - (a.w / 2)
+end
+
+function get_center(a)
+	return a.x + a.w/2, a.y + a.h/2
+end
+
+function xyt(x, y)
+	return {x = x, y = y}
+end
+
+function cr(func)
+	return add(coroutines, cocreate(func))
+end
+
+function level_cr(func)
+	return add(level_coroutines, cocreate(func))
+end
+
+function update_coroutines(coroutines)
+	for c in all(coroutines) do
+		if costatus(c) == "dead" then
+			del(coroutines, c)
+		else
+			assert(coresume(c))
+
+			-- debug: show more exception info
+			-- local _, exception = coresume(c)
+			-- if exception then
+			-- 	printh(trace(c, exception))
+			-- 	stop()
+			-- end
+		end
+	end
+end
+
+function draw_sign(s)
+	print(unpack(s))
+end
+
+function update_cutscene_actor(a)
+	update_coroutines{a.cr}
+	update_skin(a)
+	foreach({a.hat}, update_hat)
+end
+
+function pad0(s)
+	s = flr(s)
+	return "\*" .. (2 - #tostr(s)) .. "0" .. s
+end
+
+function format_time(frames, showsgn)
+	local f = abs(frames)
+	return (showsgn and data_table_40[sgn(frames)] or "") ..
+	       pad0(f / 3600) .. ":" ..
+	       pad0((f % 3600) / 60) .. "." ..
+				 pad0((100 * (f % 60)) / 60)
+end
+
+function switch_timer_mode(b)
+	if b & 0x0001 ~= 0 then
+		timermode -= 1
+	elseif b & 0x0002 ~= 0 then
+		timermode += 1
+	end
+	timermode = mid(1, timermode, 3)
+
+	dset(63, timermode)
+	menuitem(
+		3,
+		data_table_6[timermode],
+		switch_timer_mode
+	)
+
+	return true
+end
+
+function shadowprint(s, x, y, c, center)
+	if center then
+		x -= flr(txtw(s) / 2)
+	end
+
+	for i = 0, 15 do
+		pal(i, c >> 4)
+	end
+	print(s, x + 1, y + 1)
+	pal()
+	pal(15, nitecol) -- allow star in readysettxt to keep flashy nitemode color
+
+	print(s, x, y, c)
+	pal()
+end
+
+function read_cartdata()
+	furthestlevel, starcount, wintype, starcounttype = 0, 0, 3, (nitemode and 3 or 2)
+	for i = 1, max_level do
+		local status = flr(dget(i)) % 4
+		starstat[i] = status
+
+		if i < credits_level then
+			wintype = min(status, wintype)
+
+			if status >= starcounttype then
+				starcount += 1
+			end
+
+			if dget(i) > 0 then
+				furthestlevel = i
+			end
+		end
+	end
+
+	timermode = dget(63)
+
+	-- if timermode is not set, use "auto" by default
+	if timermode == 0 then
+		timermode = 2
+	end
+end
+
+function resume_music()
+	if stat(54) < 15 then
+		music(prevmusic or 24, prevmusic and 500 or 0, 1)
+	end
+end
+
+function draw_neon_bg()
+	clip(0, 63 - (neoncliph / 2), 128, neoncliph)
+
+	-- draw checkered flag bg
+	camera((t() * 10) % 12, 0)
+	env_exec(data_table_54)
+	camera()
+
+	-- neon
+	local i = flr((t() * 8) % 6) + 1
+	palt(data_table_10[i])
+	pal(data_table_2[i])
+	env_exec(data_table_7)
+
+	return clip()
+end
+
+function draw_slant(x, y, w)
+	-- left side
+	sspr(24, 119, 8, 9, x - 8, y)
+
+	-- middle
+	sspr(39, 119, 1, 9, x, y, w, 9)
+
+	-- right side
+	sspr(39, 119, 9, 9, x + w, y)
+end
+
+function draw_slant_text(txt, x, y)
+	local w = txtw(txt) + 8
+	draw_slant(x - w/2, y - 1, w)
+	shadowprint(txt, x, y, 0x27, true)
+end
+
+function ease(a, b, var, len)
+	for i = 1, len do
+		_ENV[var] = a + (curve_interp(i / len) * (b - a))
+		yield()
+	end
+end
+
+function draw_exclamation(msg)
+	shadowprint(msg, 127 - txtw(msg), 54 + sin(t() * 2) / 2, 0x2a)
+end
+
+function draw_floating_pizza(scale)
+	local dw, dh = 12 * scale, 17 * scale
+
+	palt(0b1100000000000110)
+	sspr(32, 96, 12, 17,
+		65 - dw/2,
+		scale == 1 and (55 + sin(t()) / 2) or (63 - flr(dh / 2)),
+		dw, dh
+	)
+	pal()
+	palt()
+end
+
+function draw_prompt(txt, x, y, selected)
+	shadowprint(
+		(selected and "\f2◆\^g\f7❎" or "  ") .. " " .. txt,
+		x,
+		y + (selected and promptbob or 0),
+		selected and 0x27 or 0x26,
+		true
+	)
+end
+
+function prompt(txt2, func2, txt1, func1)
+	prompt_cr = cr(function()
+		env_overlay(data_table_73)
+		prompt1txt, prompt2txt, prompt1 = txt1, txt2, txt1
+
+		repeat
+			bobframes += 1
+
+			if promptsel == 2 and btnp(0) and prompt1 then
+				promptsel, bobframes = 1, 0
+				env_exec(data_table_68) -- play sfx
+			elseif promptsel == 1 and btnp(1) then
+				promptsel, bobframes = 2, 0
+				env_exec(data_table_68) -- play sfx
+			end
+
+			promptbob = sin(bobframes / 60) / 2
+
+			if btnp(5) then
+				sfx(-1)
+				sfx(57)
+				if promptsel == 1 then
+					prompt2 = promptflash:reset()
+					func1()
+				else
+					prompt1 = promptflash:reset()
+					func2()
+				end
+
+				break
+			end
+
+			yield()
+		until sempre
+
+		-- wait, set prompt1 and prompt2 to false
+		env_exec(data_table_74)
+	end)
+end
+
+function curve_interp(v)
+	return bezier(data_table_33, v).y
+end
+
+function decomp_spritesheet()
+	lz_decomp(0x0, toc_lookup(0))
+end
+
+function update_signstar(a)
+	a.palette = {
+		[10] = a.status == 3 and nitecol or data_table_14[a.status]
+	}
+end
