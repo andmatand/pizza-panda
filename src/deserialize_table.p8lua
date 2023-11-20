@@ -31,7 +31,7 @@ function deserialize_value(addr)
 		return v, addr
 	elseif vtype == 6 then -- empty table
 		return {}, addr
-	elseif vtype == 7 then -- table
+	elseif vtype == 7 then -- array
 		return deserialize_table(addr, true)
 	elseif vtype == 8 then -- table
 		return deserialize_table(addr)
